@@ -1,1 +1,1 @@
-include ':app', ':chameleonminiusb'
+include ':chameleonminiusb'

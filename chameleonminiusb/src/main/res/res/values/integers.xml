@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <integer name="SerialUSBCommandTimeout">3000</integer>
+    <integer name="SerialUSBBaudRate">256000</integer>
+    <integer name="SerialUSBDataBits">16</integer>
+    <integer name="USBDeviceAttachVibrateMs">200</integer>
+</resources>

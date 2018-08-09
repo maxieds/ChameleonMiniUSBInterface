@@ -27,12 +27,16 @@ public class Utils {
     public static byte BYTE(int intFormat0xab) {
         return (byte) intFormat0xab;
     }
+
     public static byte MSB(int int32Param) {
         return BYTE((int32Param & 0xff000000) >> 24);
     }
+    public static byte MSB(byte[] bytesArray) { return bytesArray[0]; }
+
     public static byte LSB(int int32Param) {
         return BYTE(int32Param & 0x000000ff);
     }
+    public static byte LSB(byte[] bytesArray) { return bytesArray[bytesArray.length - 1]; }
 
     /**
      * Get random bytes seeded by the time. For use with generating random UID's.

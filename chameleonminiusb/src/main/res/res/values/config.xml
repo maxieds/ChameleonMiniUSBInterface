@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="SupportADBLogging">true</bool>
+    <bool name="BroadcastAllLogsToReceivers">true</bool>
+    <bool name="VibrateOnUSBDeviceAttach">true</bool>
+    <bool name="WriteLogsToFileOnShutdown">true</bool>
+</resources>

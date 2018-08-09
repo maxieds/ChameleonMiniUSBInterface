@@ -1,8 +1,11 @@
 package com.maxieds.chameleonminiusb;
 
+import android.annotation.TargetApi;
 import android.util.Log;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class ChameleonCommands {
@@ -12,6 +15,7 @@ public class ChameleonCommands {
     public static enum StandardCommandSet {
         GET_VERSION,
         SET_CONFIG,
+        QUERY_CONFIG,
         QUERY_UID,
         SET_UID,
         QUERY_READONLY,
@@ -44,6 +48,8 @@ public class ChameleonCommands {
                 return new String[] {"versionmy?", "VERSION?"};
             case SET_CONFIG:
                 return new String[] {"configmy=%s", "CONFIG=%s"};
+            case QUERY_CONFIG:
+                return new String[] {"configmy?", "CONFIG?"};
             case QUERY_UID:
                 return new String[] {"uidmy?", "UID?"};
             case SET_UID:
@@ -161,11 +167,33 @@ public class ChameleonCommands {
 
     }
 
-    public class ChameleonCommandResult {
+    public static class ChameleonCommandResult {
 
-        public int cmdResponseCode;
+        public String issuingCmd;
         public String cmdResponseMsg;
         public String cmdResponseData;
+        public int cmdResponseCode;
+        public boolean isValid;
+
+        ChameleonCommandResult() {
+            issuingCmd = "<NO-CMD>";
+            cmdResponseMsg = "";
+            cmdResponseData = "<NO-DATA>";
+            cmdResponseCode = -1;
+            isValid = false;
+        }
+
+        ChameleonCommandResult(String initCmd) {
+            issuingCmd = initCmd;
+            cmdResponseMsg = "";
+            cmdResponseData = "<NO-DATA>";
+            cmdResponseCode = -1;
+            isValid = false;
+        }
+
+        public String toString() {
+            return String.format(Locale.ENGLISH, "CMD(%s) => [%d] : %s", issuingCmd, cmdResponseCode, cmdResponseData);
+        }
 
         /**
          * Determines whether the received serial byte data is a command response sent by the device.
@@ -173,7 +201,7 @@ public class ChameleonCommands {
          * @param liveLogData
          * @return boolean whether the log data is a response to an issued command
          */
-        public boolean isCommandResponse(byte[] liveLogData) {
+        private boolean isCommandResponse(byte[] liveLogData) {
             LibraryLogging.i(TAG, "liveLogData: " + new String(liveLogData));
             String respText = new String(liveLogData).split("[\n\r]+")[0];
             String[] respText2 = new String(liveLogData).split("=");
@@ -193,15 +221,26 @@ public class ChameleonCommands {
          * @param responseBytes
          * @return boolean-valued truth of whether the input is a valid command response.
          */
-        public boolean processCommandResponse(byte[] responseBytes) { return true; }
-
-
-
-
+        @TargetApi(27)
+        public boolean processCommandResponse(byte[] responseBytes) {
+            if(!isCommandResponse(responseBytes)) {
+                LibraryLogging.e(TAG, "No command response for \"" + issuingCmd + "\" : RAWDATA(" + Utils.byteArrayToString(responseBytes) + ")!");
+                isValid = false;
+                return false;
+            }
+            String[] splitCmdResp = (new String(responseBytes)).split("[\n\r]+");
+            cmdResponseMsg = splitCmdResp[0];
+            cmdResponseCode = Integer.parseInt(splitCmdResp[0].substring(0, 3));
+            if(splitCmdResp.length >= 2) {
+                cmdResponseData = String.join("\n", Arrays.copyOfRange(splitCmdResp, 1, splitCmdResp.length));
+            }
+            else {
+                cmdResponseData = "<NO-DATA>";
+            }
+            isValid = (cmdResponseCode == SerialRespCode.OK.toInteger()) || (cmdResponseCode == SerialRespCode.OK_WITH_TEXT.toInteger());
+            return true;
+        }
 
     }
-
-
-
 
 }
