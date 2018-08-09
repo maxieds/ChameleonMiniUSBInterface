@@ -84,12 +84,15 @@ interface ChameleonUSBInterface {
 
     /**
      * Initiates an upload of the ingested dump to the current Chameleon slot via XModem.
+     * Notice that we have amended the proposed library spec here so that the configuration of the
+     * card type, slot to be written into, and the pre-clearing of this slot are handled by a
+     * separate routine to be called before these upload dump functions.
      * @param tagDataBytes : the ingested data bytes (a.k.a. Mifare dumps) to be written to the Chameleon.
-     * @param chameleonConfigType : if set to null, this parameter will be ignored
      * @return boolean-valued success of the operation.
+     * @ref prepareChameleonEmulationSlot
      */
-    boolean chameleonUpload(byte[] tagDataBytes, ChameleonEmulatedConfigType_t chameleonConfigType);
-    boolean chameleonUpload(InputStream dumpDataStream, ChameleonEmulatedConfigType_t chameleonConfigType);
+    boolean chameleonUpload(byte[] tagDataBytes);
+    boolean chameleonUpload(InputStream dumpDataStream);
 
 
 }

@@ -2,7 +2,7 @@
 
 <manifest 
     xmlns:android="http://schemas.android.com/apk/res/android"
-    package="chameleonminiusb">
+    package="com.maxieds.chameleonminiusb">
 
     <!-- Strictly speaking these permissions (while also not exposing any huge external vulerabilities into the 
          app) are optional. If the Bread Company Android app developers choose to make use of the logging 
