@@ -201,7 +201,7 @@ public class ChameleonCommands {
          * @param liveLogData
          * @return boolean whether the log data is a response to an issued command
          */
-        private boolean isCommandResponse(byte[] liveLogData) {
+        public static boolean isCommandResponse(byte[] liveLogData) {
             LibraryLogging.i(TAG, "liveLogData: " + new String(liveLogData));
             String respText = new String(liveLogData).split("[\n\r]+")[0];
             String[] respText2 = new String(liveLogData).split("=");

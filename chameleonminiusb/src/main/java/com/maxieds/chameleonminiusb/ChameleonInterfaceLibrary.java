@@ -88,11 +88,11 @@ interface ChameleonUSBInterface {
      * card type, slot to be written into, and the pre-clearing of this slot are handled by a
      * separate routine to be called before these upload dump functions.
      * @param tagDataBytes : the ingested data bytes (a.k.a. Mifare dumps) to be written to the Chameleon.
-     * @return boolean-valued success of the operation.
+     * @return The new UID of the emulated tag after the upload.
      * @ref prepareChameleonEmulationSlot
      */
-    boolean chameleonUpload(byte[] tagDataBytes);
-    boolean chameleonUpload(InputStream dumpDataStream);
+    String chameleonUpload(byte[] tagDataBytes);
+    String chameleonUpload(InputStream dumpDataStream);
 
 
 }

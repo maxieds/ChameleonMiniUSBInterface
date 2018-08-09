@@ -100,8 +100,59 @@ public class Utils {
         return (byte) (lsb | msb << 4);
     }
 
-    public static byte[] byteArrayFromString(String byteString) {
+    /**
+     * Transforms a hexadecimal string into a corresponding array of data bytes.
+     * @param byteStr
+     * @return Array of bytes of size (byteStr.length) / 2.
+     */
+    public static byte[] byteArrayFromString(String byteStr) {
+        if (byteStr.length() % 2 != 0) { // left-pad the string:
+            byteStr = "0" + byteStr;
+        }
+        byte[] byteRep = new byte[byteStr.length() / 2];
+        for(int b = 0; b < byteStr.length(); b += 2)
+            byteRep[b / 2] = hexString2Byte(byteStr.substring(b, b + 2));
+        return byteRep;
+    }
 
+    /**
+     * Returns an ascii print character (or '.' representation for non-print characters) of the input byte.
+     * @param b
+     * @return char print character (or '.')
+     */
+    public static char byte2Ascii(byte b) {
+        int decAsciiCode = (int) b;
+        if (b >= 32 && b <= 127) {
+            char ch = (char) b;
+            return ch;
+        }
+        else
+            return '.';
+    }
+
+    /**
+     * Returns an ascii string representing the byte array.
+     * @param bytes
+     * @return String ascii representation of the byte array
+     */
+    public static String bytes2Ascii(byte[] bytes) {
+        StringBuilder byteStr = new StringBuilder();
+        for(int b = 0; b < bytes.length; b++)
+            byteStr.append(String.valueOf(byte2Ascii(bytes[b])));
+        return byteStr.toString();
+    }
+
+    /**
+     * Truncates a long (hex or ascii string) so that it is more human readable while
+     * still giving the gist of the output it represents.
+     * @param str
+     * @param maxNumChars
+     * @return Truncated input string
+     */
+    public static String trimString(String str, int maxNumChars) {
+        if(str.length() <= maxNumChars)
+            return str;
+        return str.substring(0, maxNumChars) + "...";
     }
 
     /**
@@ -124,8 +175,8 @@ public class Utils {
             return prefixArray;
         @SuppressWarnings("unchecked")
         AType[] combinedArray = (AType[]) new Object[prefixArray.length + suffixArray.length];
-        System.arraycopy(combinedArray, 0, prefixArray, 0, prefixArray.length);
-        System.arraycopy(combinedArray, prefixArray.length, suffixArray, 0, suffixArray.length);
+        System.arraycopy(prefixArray, 0, combinedArray, 0, prefixArray.length);
+        System.arraycopy(suffixArray, 0, combinedArray, prefixArray.length, combinedArray.length);
         return combinedArray;
     }
 
@@ -161,6 +212,5 @@ public class Utils {
         currentTime.setToNow();
         return currentTime.format("%Y-%m-%d-%T");
     }
-
 
 }

@@ -6,22 +6,16 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
-import android.support.annotation.NonNull;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.support.annotation.RequiresPermission;
-import android.support.graphics.drawable.R;
-import android.support.v4.app.NotificationCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.Log;
 
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.getChameleonMiniUSBDeviceParams;
 import static com.maxieds.chameleonminiusb.LibraryLogging.LocalLoggingLevel.LOG_ADB_VERBOSE;
-import static junit.framework.Assert.assertNotNull;
 
 /**
  * This service performs the usual function of the main activity in that it listens for new
@@ -113,7 +107,7 @@ public class ChameleonMiniUSBService extends IntentService {
         }
         else if(intentAction.equalsIgnoreCase(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
             ChameleonDeviceConfig.shutdownSerialConnection();
-            LibraryLogging.i(TAG, "Chameleon device detached ... shutting down serial port connection for now.")
+            LibraryLogging.i(TAG, "Chameleon device detached ... shutting down serial port connection for now.");
         }
     }
 
@@ -128,7 +122,7 @@ public class ChameleonMiniUSBService extends IntentService {
                 .setTicker(bannerMsg)
                 .setContentText(bannerMsg)
                 .setOngoing(true)
-                .setSmallIcon(R.drawable.chameleonusb64)
+                //.setSmallIcon(R.drawable.chameleonusb64)
                 .setWhen(System.currentTimeMillis())
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setContentIntent(pendingIntent);

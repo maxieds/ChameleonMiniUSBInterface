@@ -3,7 +3,6 @@ package com.maxieds.chameleonminiusb;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.arch.core.BuildConfig;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -18,14 +17,30 @@ import android.support.annotation.IntRange;
 import android.support.annotation.RequiresPermission;
 
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.CLEAR_ACTIVE_SLOT;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_ACTIVE_SLOT;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_MEMORY_SIZE;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_RSSI_VOLTAGE;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_UID_SIZE;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_VERSION;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.QUERY_CONFIG;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.QUERY_READONLY;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.QUERY_UID;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_CONFIG;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_UID;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.DOWNLOAD;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.EXPECTING_BINARY_DATA;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.IDLE;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.PAUSED;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.UNEXPECTED_INCOMING_RXDATA;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.UPLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_RESPONSE;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_DOWNLOAD;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_UPLOAD;
 import static com.maxieds.chameleonminiusb.Utils.BYTE;
+
+import com.felhr.usbserial.UsbSerialDevice;
+import com.felhr.usbserial.UsbSerialInterface;
 import com.maxieds.chameleonminiusb.ChameleonCommands.ChameleonCommandResult;
 import com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet;
 
@@ -130,18 +145,22 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         WAITING_FOR_RESPONSE,
         EXPECTING_BINARY_DATA,
         UPLOAD,
+        WAITING_FOR_XMODEM_UPLOAD,
         DOWNLOAD,
+        WAITING_FOR_XMODEM_DOWNLOAD,
         ERROR_OCCURED,
         UNEXPECTED_INCOMING_RXDATA,
     };
 
     public static SerialUSBStates serialUSBState = IDLE;
     public static int SERIAL_USB_COMMAND_TIMEOUT = 3000; // in milliseconds
-    private static byte[] serialUSBCommandResponse;
+    public static byte[] serialUSBFullCommandResponse, serialUSBBinaryDataResponse;
+    public static ChameleonCommandResult parsedSerialUSBCmdResponse;
 
     @TargetApi(27)
     @RequiresPermission("com.android.example.USB_PERMISSION")
     public static UsbSerialDevice configureSerialPort(UsbSerialInterface.UsbReadCallback readerCallback) {
+
         if(serialPort != null) {
             shutdownSerialConnection();
             serialPort = null;
@@ -214,56 +233,56 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
      * (command responses and spontaneous LIVE log data).
      */
     public static UsbSerialInterface.UsbReadCallback usbReaderCallback = new UsbSerialInterface.UsbReadCallback() {
-        // this is what's going to get called when the LIVE config spontaneously prints its log data to console:
+
         @Override
-        public void onReceivedData(byte[] liveLogData) {
-            //Log.i(TAG, "USBReaderCallback Received Data: " + Utils.bytes2Hex(liveLogData));
-            //Log.i(TAG, "    => " + Utils.bytes2Ascii(liveLogData));
-            if(ChameleonIO.PAUSED) {
+        public void onReceivedData(byte[] liveRxData) {
+
+            // typically generate logs of the bytes in human-readable format for parsing and/or verifying in realtime:
+            if(LibraryLogging.localLoggingLevel.compareTo(LibraryLogging.LocalLoggingLevel.LOG_ADB_VERBOSE) == 0 ||
+                    LibraryLogging.localLoggingLevel.compareTo(LibraryLogging.LocalLoggingLevel.LOG_ADB_DEBUG) == 0) {
+                String summaryByteStr = String.format(Locale.ENGLISH, "[%s]\n[%s]",
+                        Utils.trimString(Utils.byteArrayToString(liveRxData), 48),
+                        Utils.trimString(Utils.bytes2Ascii(liveRxData), 48));
+                LibraryLogging.v(TAG, summaryByteStr);
+            }
+
+            if(serialUSBState.compareTo(PAUSED) == 0) {
                 return;
             }
-            else if(ChameleonIO.DOWNLOAD) {
-                //Log.i(TAG, "USBReaderCallback / DOWNLOAD");
-                ExportTools.performXModemSerialDownload(liveLogData);
+            else if(serialUSBState.compareTo(DOWNLOAD) == 0) {
+                XModem.performXModemSerialDownload(liveRxData);
                 return;
             }
-            else if(ChameleonIO.UPLOAD) {
-                //Log.i(TAG, "USBReaderCallback / UPLOAD");
-                ExportTools.performXModemSerialUpload(liveLogData);
+            else if(serialUSBState.compareTo(UPLOAD) == 0) {
+                XModem.performXModemSerialUpload(liveRxData);
                 return;
             }
-            else if(ChameleonIO.WAITING_FOR_XMODEM) {
-                //Log.i(TAG, "USBReaderCallback / WAITING_FOR_XMODEM");
-                String strLogData = new String(liveLogData);
+            else if(serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0) {
+                String strLogData = new String(liveRxData);
                 if(strLogData.length() >= 11 && strLogData.substring(0, 11).equals("110:WAITING")) {
-                    ChameleonIO.WAITING_FOR_XMODEM = false;
+                    serialUSBState = UPLOAD;
                     return;
                 }
             }
-            else if(ChameleonIO.WAITING_FOR_RESPONSE && ChameleonIO.isCommandResponse(liveLogData)) {
-                String[] strLogData = (new String(liveLogData)).split("[\n\r]+");
-                //Log.i(TAG, strLogData);
-                ChameleonIO.DEVICE_RESPONSE_CODE = strLogData[0];
-                if(strLogData.length >= 2)
-                    ChameleonIO.DEVICE_RESPONSE = Arrays.copyOfRange(strLogData, 1, strLogData.length);
-                else
-                    ChameleonIO.DEVICE_RESPONSE[0] = strLogData[0];
-                if(ChameleonIO.EXPECTING_BINARY_DATA) {
-                    int binaryBufSize = liveLogData.length - ChameleonIO.DEVICE_RESPONSE_CODE.length() - 2;
-                    ChameleonIO.DEVICE_RESPONSE_BINARY = new byte[binaryBufSize];
-                    System.arraycopy(liveLogData, liveLogData.length - binaryBufSize, ChameleonIO.DEVICE_RESPONSE_BINARY, 0, binaryBufSize);
-                    ChameleonIO.EXPECTING_BINARY_DATA = false;
+            else if(serialUSBState.compareTo(WAITING_FOR_XMODEM_DOWNLOAD) == 0) {
+                String strLogData = new String(liveRxData);
+                if(strLogData.length() >= 11 && strLogData.substring(0, 11).equals("110:WAITING")) {
+                    serialUSBState = DOWNLOAD;
+                    return;
                 }
-                ChameleonIO.WAITING_FOR_RESPONSE = false;
-                return;
             }
-            final LogEntryUI nextLogEntry = LogEntryUI.newInstance(liveLogData, "");
-            if(nextLogEntry != null) {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        appendNewLog(nextLogEntry);
-                    }
-                });
+            else if((serialUSBState.compareTo(WAITING_FOR_RESPONSE) == 0 || serialUSBState.compareTo(EXPECTING_BINARY_DATA) == 0) &&
+                    ChameleonCommandResult.isCommandResponse(liveRxData)) {
+                ChameleonCommandResult parsedCmdResult = new ChameleonCommandResult();
+                parsedCmdResult.processCommandResponse(liveRxData);
+                parsedSerialUSBCmdResponse = parsedCmdResult;
+                int binaryBufSize = liveRxData.length - parsedCmdResult.cmdResponseMsg.length() - 2;
+                serialUSBBinaryDataResponse = new byte[binaryBufSize];
+                System.arraycopy(liveRxData, liveRxData.length - binaryBufSize, serialUSBBinaryDataResponse, 0, binaryBufSize);
+                serialUSBState = IDLE;
+            }
+            else {
+                serialUSBState = UNEXPECTED_INCOMING_RXDATA;
             }
         }
     };
@@ -314,7 +333,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 break;
             }
         }
-        cmdResult.processCommandResponse(serialUSBCommandResponse);
+        cmdResult.processCommandResponse(serialUSBFullCommandResponse);
         return cmdResult;
     }
 
@@ -331,7 +350,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     }
 
     /**** Chameleon Board UID configuration and real-time / live setting functions ****/
-    public static byte[] chameleonUIDPrefixBytes = BuildConfig.chameleonUIDPrefix;
+    public static byte[] chameleonUIDPrefixBytes = Utils.byteArrayFromString("BC5926C8");
     public static int chameleonUIDNumBytes = 8;
 
     public static enum ChameleonUIDTypeSpec_t {
@@ -349,7 +368,10 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         else if(uidOperation == ChameleonUIDTypeSpec_t.SPECIFY_SUFFIX_BYTES && suffixBytes == null) {
             return false;
         }
-        else if(uidOperation == ChameleonUIDTypeSpec_t.SPECIFY_SUFFIX_BYTES &&
+        try {
+            chameleonUIDNumBytes = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
+        } catch(Exception nfe) {}
+        if(uidOperation == ChameleonUIDTypeSpec_t.SPECIFY_SUFFIX_BYTES &&
                 chameleonUIDNumBytes != chameleonUIDPrefixBytes.length + suffixBytes.length() / 2) {
             return false;
         }
@@ -421,11 +443,11 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     private static ServiceConnection usbServiceConn = new ServiceConnection() {
         public ChameleonMiniUSBService usbService;
         public void onServiceConnected(ComponentName className, IBinder binder) {
-            LocalLogging.d("ServiceConnection","connected");
+            LibraryLogging.d("ServiceConnection","connected");
             usbService = (ChameleonMiniUSBService) binder;
         }
         public void onServiceDisconnected(ComponentName className) {
-            LocalLogging.d("ServiceConnection","disconnected");
+            LibraryLogging.d("ServiceConnection","disconnected");
             usbService = null;
         }
     };
@@ -443,16 +465,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         mainApplicationActivity = mainActivity;
         LibraryLogging.localLoggingLevel = localLoggingLevel;
         THE_CHAMELEON_DEVICE = this;
-
-        USB_BAUD_RATE = mainApplicationActivity.getResources().getInteger(R.integer.SerialUSBBaudRate);
-        USB_DATA_BITS = mainApplicationActivity.getResources().getInteger(R.integer.SerialUSBDataBits);
-        SERIAL_USB_COMMAND_TIMEOUT = mainApplicationActivity.getResources().getInteger(R.integer.SerialUSBCommandTimeout);
-
-        ChameleonMiniUSBService.vibrateOnUSBDeviceAttach = mainApplicationActivity.getResources().getBoolean(R.bool.VibrateOnUSBDeviceAttach);
-        ChameleonMiniUSBService.vibrateDurationMs = mainApplicationActivity.getResources().getInteger(R.integer.USBDeviceAttachVibrateMs);
-        LibraryLogging.SUPPORT_ADB_LOGGING = mainApplicationActivity.getResources().getBoolean(R.bool.SupportADBLogging);
-        LibraryLogging.broadcastAllLogsToReceivers = mainApplicationActivity.getResources().getBoolean(R.bool.BroadcastAllLogsToReceivers);
-        LibraryLogging.writeLogsToFileOnShutdown = mainApplicationActivity.getResources().getBoolean(R.bool.WriteLogsToFileOnShutdown);
 
         // permissions we will need to run the service (and in general):
         String[] permissions = {
@@ -532,8 +544,21 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return slotOpSuccess && setConfigResult.isValid;
     }
 
-    boolean chameleonUpload(byte[] tagDataBytes, ChameleonEmulatedConfigType_t chameleonConfigType);
-    boolean chameleonUpload(InputStream dumpDataStream, ChameleonEmulatedConfigType_t chameleonConfigType);
+    public String chameleonUpload(byte[] tagDataBytes) {
+
+        // TODO
+
+        serialUSBState = IDLE;
+        ChameleonCommandResult nextUIDResult = sendCommandToChameleon(QUERY_UID, null);
+        return nextUIDResult.cmdResponseData;
+    }
+
+    public String chameleonUpload(InputStream dumpDataStream) {
+        XModem.uploadCardFileByXModem(dumpDataStream);
+        serialUSBState = IDLE;
+        ChameleonCommandResult nextUIDResult = sendCommandToChameleon(QUERY_UID, null);
+        return nextUIDResult.cmdResponseData;
+    }
 
 
 

@@ -4,17 +4,14 @@ import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.os.Environment;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
-
-import libbasicchameleoninterface.BuildConfig;
-import sun.rmi.runtime.Log;
 
 import static android.content.ContentValues.TAG;
 import static com.maxieds.chameleonminiusb.LibraryLogging.LocalLoggingLevel.LOG_ADB_OFF;
@@ -63,7 +60,7 @@ public class LibraryLogging {
         public static ArrayList<LogEntry> loggingQueue = new ArrayList<LogEntry>();
 
         public static LogEntry enqueueNewLog(LocalLoggingLevel level, String TAG, String[] message) {
-            LogEntry logEntry = new LogEntry(level, TAG, message);
+            LogEntry logEntry = LogEntry.newInstance(level, TAG, message);
             loggingQueue.add(logEntry);
             if(broadcastAllLogsToReceivers) {
                 logEntry.broadcastAsIntent();
@@ -71,22 +68,23 @@ public class LibraryLogging {
             return logEntry;
         }
 
-        long uniqueLogID;
-        String logTimestamp;
-        String logSeverity;
-        String invokingClassTag;
-        int invokingLineNumber;
-        String invokingMethodName;
-        String[] logMsgs;
+        private long uniqueLogID;
+        private String logTimestamp;
+        private String logSeverity;
+        private String invokingClassTag;
+        private int invokingLineNumber;
+        private String invokingMethodName;
+        private String[] logMsgs;
 
-        LogEntry(LocalLoggingLevel level, String TAG, String[] message) {
-            uniqueLogID = ++uniqueLogCounter;
-            logTimestamp = Utils.getTimestamp();
-            logSeverity = "LOGDATA_" + level.name().split("_", 2)[2];
-            invokingClassTag = TAG;
-            invokingLineNumber = LINE();
-            invokingMethodName = FUNC();
-            logMsgs = message;
+        public static LogEntry newInstance(LocalLoggingLevel level, String TAG, String[] message) {
+            LogEntry le = new LogEntry();
+            le.uniqueLogID = ++uniqueLogCounter;
+            le.logTimestamp = Utils.getTimestamp();
+            le.logSeverity = "LOGDATA_" + level.name().split("_", 2)[2];
+            le.invokingClassTag = TAG;
+            le.invokingLineNumber = LINE();
+            le.invokingMethodName = FUNC();
+            le.logMsgs = message;
         }
 
         public Intent broadcastAsIntent() {
@@ -105,12 +103,64 @@ public class LibraryLogging {
 
         public static boolean writeLogsToXMLFile() {
             File xmlOutFile = createTimestampedXMLLogFile();
-            return false;
+            try {
+                FileWriter fileWriter = new FileWriter(xmlOutFile);
+                FuncInterface tagFunc = (String tagName, String value)->String.format(Locale.ENGLISH, "     <%s>%s</%s>\n", tagName, value, tagName);
+                for(int log = 0; log < loggingQueue.size(); log++) {
+                    LogEntry le = loggingQueue.get(log);
+                    String[] logXMLEntry = new String[] {
+                            "<LogEntry>",
+                            tagFunc.abstractFun("LogID", String.valueOf(le.uniqueLogID)),
+                            tagFunc.abstractFun("TimeStamp", le.logTimestamp),
+                            tagFunc.abstractFun("Level", le.logSeverity),
+                            tagFunc.abstractFun("InvokingClass", le.invokingClassTag),
+                            tagFunc.abstractFun("InvokvingMethod", le.invokingMethodName),
+                            tagFunc.abstractFun("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
+                            "     <MessageData>\n",
+                    };
+                    fileWriter.write(String.join("", logXMLEntry));
+                    for(int msg = 0; msg < le.logMsgs.length; msg++) {
+                        String msgTagLine = String.format(Locale.ENGLISH, "          <Msg>%s</Msg>\n", le.logMsgs[msg]);
+                        fileWriter.write(msgTagLine);
+                    }
+                    fileWriter.write("     </MessageData>\n</LogEntry>");
+                }
+                fileWriter.flush();
+                fileWriter.close();
+            } catch(Exception ioe) {
+                xmlOutFile.delete();
+                return false;
+            }
+            return true;
         }
 
         public static boolean writeLogsToPlainTextFile() {
             File ptextOutFile = createTimestampedPlaintextLogFile();
-            return false;
+            try {
+                FileWriter fileWriter = new FileWriter(ptextOutFile);
+                for(int log = 0; log < loggingQueue.size(); log++) {
+                    LogEntry le = loggingQueue.get(log);
+                    String[] ptLogs = new String[] {
+                            String.format(Locale.ENGLISH, "============================== #% 8x @ %s ==============================", le.uniqueLogID, le.logTimestamp),
+                            String.format(Locale.ENGLISH, "   [LEVEL] %s\n", le.logSeverity),
+                            String.format(Locale.ENGLISH, "   [CLASS] %s\n", le.invokingClassTag),
+                            String.format(Locale.ENGLISH, "   [FUNC]  %s\n", le.invokingMethodName),
+                            String.format(Locale.ENGLISH, "   [LINE]  %s\n", le.invokingLineNumber),
+                    };
+                    fileWriter.write(String.join("", ptLogs));
+                    for(int msg = 0; msg < le.logMsgs.length; msg++) {
+                        String msgLine = String.format(Locale.ENGLISH, "   [MSG  ] %s\n", le.logMsgs[msg]);
+                        fileWriter.write(msgLine);
+                    }
+                    fileWriter.write("\n");
+                }
+                fileWriter.flush();
+                fileWriter.close();
+            } catch(Exception ioe) {
+                ptextOutFile.delete();
+                return false;
+            }
+            return true;
         }
 
     };
@@ -160,7 +210,7 @@ public class LibraryLogging {
     }
 
     /**** Creating and writing logs to file ****/
-    public static final String localLoggingBaseDirectory = BuildConfig.LOGGING_FILE_DIRECTORY;
+    public static final String localLoggingBaseDirectory = "ChameleonMiniOperationLogs";
     public static final String localXMLLoggingFilePrefix = "ChameleonMiniUSBLibrary-XMLLog-";
     public static final String localPlaintextLoggingFilePrefix = "ChameleonMiniUSBLibrary-PlaintextLog-";
 
