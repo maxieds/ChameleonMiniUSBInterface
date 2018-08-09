@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- This file (which is referenced in the/any main app Manifest file) ensures that the
+     running application is notified whenever on of the RevE or RevG boards is plugged in to
+     the Android phone over USB. Note that certain USB permissions must also be set in the
+     Manifest file for this action to be effective. Actually, per the most intuitive design
+     descision the developer could make based on experience with the Chameleon Mini Live
+     Debugger application development, a separate activity (ChameleonMiniUSBActivity) must
+     also be running in addition to whatever Android activities the Bread Co developers have
+     implemented to ensure that these devices are configured correctly on-demand in the
+     running activity. In many senses, this design choice is a solid one since it effectively
+     encapsulates the running of this library for controlling the Chameleon boards from the
+     other core functionality needed in their day-to-day app.
+ -->
+<resources>
+
+    <!-- ChameleonMini Rev. G Board Firmware Device Specs -->
+    <usb-device vendor-id="5840" product-id="1202" class="255" />
+
+    <!-- ChameleonMini Rev. E (Rebooted) Board Firmware Device Specs -->
+    <usb-device vendor-id="1003" product-id="8260" class="255" />
+
+</resources>
