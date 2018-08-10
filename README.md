@@ -2,13 +2,10 @@
 <img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/toast_delivery_logo_usb.png" />
 </center>
 
-<img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> # ChameleonMiniUSBInterface library 
+<img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> 
 
-<style>
-.body {font-family:Papyrus; font-size:8pt; color: lightblue;}
-</style>
+# ChameleonMiniUSBInterface library 
 
-===========================================================
 
 ## Introduction and core interface
 
