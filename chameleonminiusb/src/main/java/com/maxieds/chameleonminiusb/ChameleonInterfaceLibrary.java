@@ -2,6 +2,7 @@ package com.maxieds.chameleonminiusb;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.support.annotation.IntRange;
 
 import com.maxieds.chameleonminiusb.ChameleonDeviceConfig.ChameleonBoardType_t;
@@ -21,7 +22,7 @@ interface ChameleonUSBInterface {
      * @return truth value of whether the initialization operation was successful.
      * @see ChameleonDeviceConfig
      */
-    boolean chameleonUSBInterfaceInitialize(Activity mainActivity);
+    boolean chameleonUSBInterfaceInitialize(Context mainActivity);
 
     /**
      * Call one of these functions to initialize the Chameleon USB library.
@@ -33,7 +34,7 @@ interface ChameleonUSBInterface {
      * @return truth value of whether the initialization operation was successful.
      * @see ChameleonDeviceConfig
      */
-    boolean chameleonUSBInterfaceInitialize(Activity mainActivity, LocalLoggingLevel libraryLoggingLevel);
+    boolean chameleonUSBInterfaceInitialize(Context mainActivity, LocalLoggingLevel libraryLoggingLevel);
 
     /**
      * Call this method to close all Chameleon device connections and shutdown any running

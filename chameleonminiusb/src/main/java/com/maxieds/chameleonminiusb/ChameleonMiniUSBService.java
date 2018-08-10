@@ -5,7 +5,10 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.support.v4.app.NotificationCompat;
@@ -23,7 +26,7 @@ public class ChameleonMiniUSBService extends IntentService {
 
     private static final String TAG = ChameleonMiniUSBService.class.getSimpleName();
 
-    public static ChameleonMiniUSBService localService;
+    public static ChameleonMiniUSBService localService = new ChameleonMiniUSBService();
 
     public ChameleonMiniUSBService() {
         super("ChameleonMiniUSBService");
@@ -49,10 +52,30 @@ public class ChameleonMiniUSBService extends IntentService {
 
     @Override
     public void onCreate() {
+
+        localService = this;
         LibraryLogging.i(TAG, "Started Chameleon Mini USB service in the background...");
         super.onCreate();
         initNotifyChannel();
-        localService = this;
+
+        // now setup the basic serial port so that we can accept attached USB device connections:
+        if(!ChameleonDeviceConfig.usbReceiversRegistered) {
+            //serialPort = configureSerialPort(null, usbReaderCallback);
+            BroadcastReceiver usbActionReceiver = new BroadcastReceiver() {
+                @RequiresPermission("com.android.example.USB_PERMISSION")
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction() != null && (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED) || intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED))) {
+                        ChameleonMiniUSBService.localService.onHandleIntent(intent);
+                    }
+                }
+            };
+            IntentFilter usbActionFilter = new IntentFilter();
+            usbActionFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+            usbActionFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+            ChameleonMiniUSBService.localService.registerReceiver(usbActionReceiver, usbActionFilter);
+            ChameleonDeviceConfig.usbReceiversRegistered = true;
+        }
+
     }
 
     @Override

@@ -439,7 +439,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
     /**** ChameleonUSBInterface implementation: ****/
 
-    public static Activity mainApplicationActivity;
+    public static Context mainApplicationActivity;
 
     private static ServiceConnection usbServiceConn = new ServiceConnection() {
         public ChameleonMiniUSBService usbService;
@@ -454,12 +454,12 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     };
 
     @RequiresPermission("com.android.example.USB_PERMISSION")
-    public boolean chameleonUSBInterfaceInitialize(Activity mainActivity) {
+    public boolean chameleonUSBInterfaceInitialize(Context mainActivity) {
         return chameleonUSBInterfaceInitialize(mainActivity, LibraryLogging.LocalLoggingLevel.LOG_ADB_ERROR);
     }
 
     @RequiresPermission("com.android.example.USB_PERMISSION")
-    public boolean chameleonUSBInterfaceInitialize(Activity mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
+    public boolean chameleonUSBInterfaceInitialize(Context mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
 
         // setup configurations and constants:
         mainApplicationActivity = mainActivity;
@@ -476,7 +476,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 "android.permission.FOREGROUND_SERVICE",
         };
         if (android.os.Build.VERSION.SDK_INT >= 23)
-            mainApplicationActivity.requestPermissions(permissions, 200);
+            ((Activity) mainApplicationActivity).requestPermissions(permissions, 200);
 
         // Start the foreground service to handle new and removed USB connections:
         Intent startChameleonUSBService = new Intent(mainApplicationActivity, ChameleonMiniUSBService.class);
@@ -484,23 +484,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         mainApplicationActivity.startService(startChameleonUSBService);
         mainApplicationActivity.bindService(startChameleonUSBService, usbServiceConn, Context.BIND_AUTO_CREATE);
 
-        // now setup the basic serial port so that we can accept attached USB device connections:
-        if(!usbReceiversRegistered) {
-            //serialPort = configureSerialPort(null, usbReaderCallback);
-            BroadcastReceiver usbActionReceiver = new BroadcastReceiver() {
-                @RequiresPermission("com.android.example.USB_PERMISSION")
-                public void onReceive(Context context, Intent intent) {
-                    if (intent.getAction() != null && (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED) || intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED))) {
-                        ChameleonMiniUSBService.localService.onHandleIntent(intent);
-                    }
-                }
-            };
-            IntentFilter usbActionFilter = new IntentFilter();
-            usbActionFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-            usbActionFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-            ChameleonMiniUSBService.localService.registerReceiver(usbActionReceiver, usbActionFilter);
-            usbReceiversRegistered = true;
-        }
         return true;
 
     }

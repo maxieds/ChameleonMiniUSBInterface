@@ -24,7 +24,9 @@ android {
         targetSdkVersion 27
         versionCode 1
         versionName "v1.0.0"
-        archivesBaseName = "ChameleonUSBSupportLibrary-" + versionName + "\"" + getBuildDateTimeStamp() + "\""
+        archivesBaseName = "ChameleonUSBSupportLibrary-" + versionName + "(" + versionCode + ")"
+        buildConfigField "String", "BUILD_TIMESTAMP", "\"" + getBuildDateTimeStamp() + "\""
+        buildConfigField "String", "FULL_LIBRARY_NAME", "\"" + getBuildDateTimeStamp() + "\""
     }
 
 }

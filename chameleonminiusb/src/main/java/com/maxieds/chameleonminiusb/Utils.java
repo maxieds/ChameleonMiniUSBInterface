@@ -4,6 +4,7 @@ import android.text.format.Time;
 import org.apache.commons.lang3.ArrayUtils;
 import java.util.Locale;
 import java.util.Random;
+import java.util.jar.Manifest;
 
 
 /**
@@ -211,6 +212,15 @@ public class Utils {
         Time currentTime = new Time();
         currentTime.setToNow();
         return currentTime.format("%Y-%m-%d-%T");
+    }
+
+    /**** Build Parameters: ****/
+    public static String getLibraryVersionCode() {
+        return BuildConfig.FULL_LIBRARY_NAME;
+    }
+
+    public static String getLibraryBuildStamp() {
+        return BuildConfig.BUILD_TIMESTAMP;
     }
 
 }
