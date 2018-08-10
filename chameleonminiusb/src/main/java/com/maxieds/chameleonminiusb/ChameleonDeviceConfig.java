@@ -361,7 +361,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         SPECIFY_SUFFIX_BYTES,
     };
 
-    boolean changeChameleonUID(ChameleonUIDTypeSpec_t uidOperation, String suffixBytes) {
+    public static boolean changeChameleonUID(ChameleonUIDTypeSpec_t uidOperation, String suffixBytes) {
 
         if(!chameleonDeviceIsConfigured()) {
             return false;
@@ -498,7 +498,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             LibraryLogging.LogEntry.writeLogsToPlainTextFile();
         }
         usbReceiversRegistered = false;
-        THE_CHAMELEON_DEVICE = null;
+        //THE_CHAMELEON_DEVICE = null;
         return true;
     }
 

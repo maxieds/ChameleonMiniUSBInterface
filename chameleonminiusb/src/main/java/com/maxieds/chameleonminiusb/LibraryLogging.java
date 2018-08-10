@@ -33,11 +33,14 @@ public class LibraryLogging {
         ChameleonDeviceConfig.mainApplicationActivity.sendBroadcast(new Intent(intentAction));
     }
 
-    public static IntentFilter getChameleonNotifyFilter() {
+    public static IntentFilter getChameleonNotifyFilter(boolean includeLoggingBCasts) {
         IntentFilter chameleonNotifyFilter = new IntentFilter();
         chameleonNotifyFilter.addAction("CHAMELEON_REVG_ATTACHED");
         chameleonNotifyFilter.addAction("CHAMELEON_REVE_ATTACHED");
         chameleonNotifyFilter.addAction("CHAMELEON_DETACHED");
+        if(includeLoggingBCasts) {
+            chameleonNotifyFilter.addAction("com.maxieds.chameleonminiusb.LibraryLogging");
+        }
         return chameleonNotifyFilter;
     }
 
@@ -102,7 +105,8 @@ public class LibraryLogging {
             if(ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.mainApplicationActivity == null) {
                 return null;
             }
-            Intent logMsgIntent = new Intent(logSeverity);
+            Intent logMsgIntent = new Intent("com.maxieds.chameleonminiusb.LibraryLogging");
+            logMsgIntent.putExtra("LogSeverity", logSeverity);
             logMsgIntent.putExtra("UniqueLogID", uniqueLogID);
             logMsgIntent.putExtra("Timestamp", logTimestamp);
             logMsgIntent.putExtra("SourceCodeRefs",
@@ -112,27 +116,24 @@ public class LibraryLogging {
             return logMsgIntent;
         }
 
-        @FunctionalInterface
-        public interface TagFunction<SP, TP, UP> {
-            public UP getTag(SP tagName, TP tagValue);
+        private static String XMLTAG(String tagName, String tagValue) {
+            return "     <" + tagName + ">" + tagValue + "</" + tagName + ">\n";
         }
 
         public static boolean writeLogsToXMLFile() {
             File xmlOutFile = createTimestampedXMLLogFile();
             try {
                 FileWriter fileWriter = new FileWriter(xmlOutFile);
-                TagFunction<String, String, String> tagFunc = (String tagName, String tagValue) ->
-                        "     <" + tagName + ">" + tagValue + "</" + tagName + ">\n";
                 for(int log = 0; log < loggingQueue.size(); log++) {
                     LogEntry le = loggingQueue.get(log);
                     String[] logXMLEntry = new String[] {
                             "<LogEntry>",
-                            tagFunc.getTag("LogID", String.valueOf(le.uniqueLogID)),
-                            tagFunc.getTag("TimeStamp", le.logTimestamp),
-                            tagFunc.getTag("Level", le.logSeverity),
-                            tagFunc.getTag("InvokingClass", le.invokingClassTag),
-                            tagFunc.getTag("InvokvingMethod", le.invokingMethodName),
-                            tagFunc.getTag("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
+                            XMLTAG("LogID", String.valueOf(le.uniqueLogID)),
+                            XMLTAG("TimeStamp", le.logTimestamp),
+                            XMLTAG("Level", le.logSeverity),
+                            XMLTAG("InvokingClass", le.invokingClassTag),
+                            XMLTAG("InvokvingMethod", le.invokingMethodName),
+                            XMLTAG("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
                             "     <MessageData>\n",
                     };
                     fileWriter.write(String.join("", logXMLEntry));
