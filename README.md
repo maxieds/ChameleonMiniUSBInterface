@@ -1,9 +1,11 @@
 <center>
 <img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/toast_delivery_logo_usb.png" />
-<img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" />
 </center>
 
-# ChameleonMiniUSBInterface library
+<p><img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> **ChameleonMiniUSBInterface library**
+[![Build Status](https://travis-ci.org/felHR85/UsbSerial.svg?branch=master)](https://travis-ci.org/felHR85/UsbSerial) [![](https://jitpack.io/v/felHR85/UsbSerial.svg)](https://jitpack.io/#felHR85/UsbSerial) [![AndroidArsenal](https://img.shields.io/badge/Android%20Arsenal-UsbSerial-green.svg?style=true)](https://android-arsenal.com/details/1/4162) [![Join the chat at https://gitter.im/UsbSerial/Lobby](https://badges.gitter.im/UsbSerial/Lobby.svg)](https://gitter.im/UsbSerial/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+===========================================================
 
 ## Introduction and core interface
 
@@ -42,14 +44,16 @@ interacting with and communicating with the Chameleon Mini RevE and RevG devices
 * **Determining the Revision of the Chameleon Device Firmware:** Starting [here](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonDeviceConfig.java#L89). Once the library is configured, the user can call either of 
 *boolean isRevisionEDevice()* or *boolean isRevisionGDevice()* to determine which firmware variant you are working with. The function 
 *String[] getChameleonMiniUSBDeviceParams()* effectively translates all of the properties (core at least to the lass detailed RevE Rebooted firmware) of the device:
+<span style="font-family:Papyrus; font-size:8pt; color: lightblue;">
 ```
 chameleonUSBInterfaceInitialize(mainApplicationActivityRef, LibraryLogging.LocalLoggingLevel.LOG_ADB_VERBOSE);
 
 // ... plug in the device, wait to be notified it is recognized (see below for a complete example) ...
 while(!ChameleonDeviceConfig.isRevisionEDevice() && !ChameleonDeviceConfig.isRevisionGDevice()) {
-try {
-	Thread.sleep(50);
-} catch (InterruptedException ie) {}
+	try {
+		Thread.sleep(50);
+	} catch (InterruptedException ie) {}
+}
 LibraryLogging.i(TAG, String.join("\n", getChameleonMiniUSBDeviceParams()); 
 
 // Now set the second slot to a MF_CLASSIC_4K, set a semi-random UID for it, and then make the slot immutable:
@@ -58,6 +62,7 @@ changeChameleonUID(ChameleonUIDTypeSpec_t.PREFIXED_RANDOMIZED, ChameleonDeviceCo
 ChameleonCommandResult setROResult = sendCommandToChameleon(SET_READONLY, 1);
 LibraryLogging.d(TAG, setROResult.toString());
 ```
+</span>
 * **Technical handling of the serial USB communications:** Starts [here](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonDeviceConfig.java#L133). The *UsbReaderCallback* function which actually handles all of the RX data received back from the 
 Chameleon device happens [here](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonDeviceConfig.java#L235) for user perusal.
 * **Sending arbitrary commands to the Chameleon:** The core functions start [here](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonDeviceConfig.java#L313) and the translations of the supported commands are defined in [ChameleonCommands.java](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonCommands.java):
