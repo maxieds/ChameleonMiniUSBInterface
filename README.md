@@ -2,8 +2,7 @@
 <img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/toast_delivery_logo_usb.png" />
 </center>
 
-<p><img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> **ChameleonMiniUSBInterface library**
-[![Build Status](https://travis-ci.org/felHR85/UsbSerial.svg?branch=master)](https://travis-ci.org/felHR85/UsbSerial) [![](https://jitpack.io/v/felHR85/UsbSerial.svg)](https://jitpack.io/#felHR85/UsbSerial) [![AndroidArsenal](https://img.shields.io/badge/Android%20Arsenal-UsbSerial-green.svg?style=true)](https://android-arsenal.com/details/1/4162) [![Join the chat at https://gitter.im/UsbSerial/Lobby](https://badges.gitter.im/UsbSerial/Lobby.svg)](https://gitter.im/UsbSerial/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+<img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> # ChameleonMiniUSBInterface library 
 
 <style>
 .body {font-family:Papyrus; font-size:8pt; color: lightblue;}
