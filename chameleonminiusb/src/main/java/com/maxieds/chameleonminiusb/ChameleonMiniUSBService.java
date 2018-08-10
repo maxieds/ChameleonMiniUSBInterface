@@ -1,17 +1,14 @@
 package com.maxieds.chameleonminiusb;
 
-import android.annotation.TargetApi;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
+import android.support.v4.app.NotificationCompat;
 import android.support.annotation.RequiresPermission;
 
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.getChameleonMiniUSBDeviceParams;
@@ -22,16 +19,12 @@ import static com.maxieds.chameleonminiusb.LibraryLogging.LocalLoggingLevel.LOG_
  * USB connections and newly detached USB connections and configures the target Chameleon Mini
  * devices accordingly.
  */
-@TargetApi(27)
 public class ChameleonMiniUSBService extends IntentService {
 
     private static final String TAG = ChameleonMiniUSBService.class.getSimpleName();
 
     public static ChameleonMiniUSBService localService;
-    public static boolean vibrateOnUSBDeviceAttach = true;
-    public static int vibrateDurationMs = 200;
 
-    @TargetApi(27)
     public ChameleonMiniUSBService() {
         super("ChameleonMiniUSBService");
     }
@@ -70,7 +63,7 @@ public class ChameleonMiniUSBService extends IntentService {
     }
 
     @Override
-    @RequiresPermission("com.android.example.USB_PERMISSION")
+    @RequiresPermission(allOf = {"com.android.example.USB_PERMISSION"})
     protected void onHandleIntent(Intent intent) {
         if(intent == null) {
             LibraryLogging.w(TAG, "onHandleIntent passed a NULL intent object.");
@@ -91,15 +84,6 @@ public class ChameleonMiniUSBService extends IntentService {
             else if(ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.handleNewUSBDeviceAttached()) {
                 LibraryLogging.i(TAG, "A new Chameleon device was just attached.");
                 LibraryLogging.LogEntry.enqueueNewLog(LOG_ADB_VERBOSE, TAG, getChameleonMiniUSBDeviceParams());
-                if(vibrateOnUSBDeviceAttach) {
-                    Vibrator vbr = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vbr.vibrate(VibrationEffect.createOneShot(vibrateDurationMs, VibrationEffect.DEFAULT_AMPLITUDE));
-                    }
-                    else{
-                        vbr.vibrate(vibrateDurationMs);
-                    }
-                }
             }
             else {
                 LibraryLogging.i(TAG, "A non-Chameleon USB device was attached to the phone.");
@@ -107,6 +91,7 @@ public class ChameleonMiniUSBService extends IntentService {
         }
         else if(intentAction.equalsIgnoreCase(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
             ChameleonDeviceConfig.shutdownSerialConnection();
+            LibraryLogging.broadcastIntent("CHAMELEON_DETATCHED");
             LibraryLogging.i(TAG, "Chameleon device detached ... shutting down serial port connection for now.");
         }
     }

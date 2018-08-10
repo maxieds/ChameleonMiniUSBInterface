@@ -1,7 +1,5 @@
 package com.maxieds.chameleonminiusb;
 
-import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -43,6 +41,8 @@ import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 import com.maxieds.chameleonminiusb.ChameleonCommands.ChameleonCommandResult;
 import com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet;
+
+import org.apache.commons.lang3.NotImplementedException;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -157,7 +157,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     public static byte[] serialUSBFullCommandResponse, serialUSBBinaryDataResponse;
     public static ChameleonCommandResult parsedSerialUSBCmdResponse;
 
-    @TargetApi(27)
     @RequiresPermission("com.android.example.USB_PERMISSION")
     public static UsbSerialDevice configureSerialPort(UsbSerialInterface.UsbReadCallback readerCallback) {
 
@@ -179,10 +178,12 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 int devicePID = device.getProductId();
                 if(deviceVID == CMUSB_REVG_VENDORID && devicePID == CMUSB_REVG_PRODUCTID) {
                     connection = usbManager.openDevice(device);
+                    LibraryLogging.broadcastIntent("CHAMELEON_REVG_ATTACHED");
                     break;
                 }
                 else if(deviceVID == CMUSB_REVE_VENDORID && devicePID == CMUSB_REVE_PRODUCTID) {
                     connection = usbManager.openDevice(device);
+                    LibraryLogging.broadcastIntent("CHAMELEON_REVE_ATTACHED");
                     break;
                 }
             }
@@ -250,8 +251,9 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 return;
             }
             else if(serialUSBState.compareTo(DOWNLOAD) == 0) {
-                XModem.performXModemSerialDownload(liveRxData);
-                return;
+                throw new NotImplementedException("Need XModem.performXModemSerialDownload");
+                //XModem.performXModemSerialDownload(liveRxData);
+                //return;
             }
             else if(serialUSBState.compareTo(UPLOAD) == 0) {
                 XModem.performXModemSerialUpload(liveRxData);
@@ -314,7 +316,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
      **** providing an easy-to-use mechanism for translating between the RevE versus RevG
      **** variants of the common RevE command set. ****/
 
-    @TargetApi(27)
     public static ChameleonCommandResult sendRawStringToChameleon(String cmdString) {
         if(!chameleonDeviceIsConfigured()) {
             LibraryLogging.e(TAG, "Chameleon device not configured for command \"" + cmdString + "\"");
@@ -457,7 +458,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return chameleonUSBInterfaceInitialize(mainActivity, LibraryLogging.LocalLoggingLevel.LOG_ADB_ERROR);
     }
 
-    @TargetApi(27)
     @RequiresPermission("com.android.example.USB_PERMISSION")
     public boolean chameleonUSBInterfaceInitialize(Activity mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
 
@@ -472,7 +472,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 "android.permission.WRITE_EXTERNAL_STORAGE",
                 "android.permission.INTERNET",
                 "com.android.example.USB_PERMISSION",
-                "android.permission.VIBRATE",
                 "android.permission.BROADCAST_STICKY",
                 "android.permission.FOREGROUND_SERVICE",
         };

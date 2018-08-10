@@ -1,13 +1,11 @@
 package com.maxieds.chameleonminiusb;
 
-import android.annotation.TargetApi;
-import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Environment;
 import android.util.Log;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,6 +28,18 @@ public class LibraryLogging {
     public static LocalLoggingLevel localLoggingLevel = LocalLoggingLevel.LOG_ADB_VERBOSE;
     public static boolean broadcastAllLogsToReceivers = true;
     public static boolean writeLogsToFileOnShutdown = true;
+
+    public static void broadcastIntent(String intentAction) {
+        ChameleonDeviceConfig.mainApplicationActivity.sendBroadcast(new Intent(intentAction));
+    }
+
+    public static IntentFilter getChameleonNotifyFilter() {
+        IntentFilter chameleonNotifyFilter = new IntentFilter();
+        chameleonNotifyFilter.addAction("CHAMELEON_REVG_ATTACHED");
+        chameleonNotifyFilter.addAction("CHAMELEON_REVE_ATTACHED");
+        chameleonNotifyFilter.addAction("CHAMELEON_DETACHED");
+        return chameleonNotifyFilter;
+    }
 
     public static class LogEntry {
 
@@ -85,6 +95,7 @@ public class LibraryLogging {
             le.invokingLineNumber = LINE();
             le.invokingMethodName = FUNC();
             le.logMsgs = message;
+            return le;
         }
 
         public Intent broadcastAsIntent() {
@@ -97,25 +108,31 @@ public class LibraryLogging {
             logMsgIntent.putExtra("SourceCodeRefs",
                     String.format(Locale.ENGLISH, "%s:%s @ %d", invokingClassTag, invokingMethodName, invokingLineNumber));
             logMsgIntent.putExtra("MessageData", logMsgs);
-            LocalBroadcastManager.getInstance(ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.mainApplicationActivity).sendBroadcast(logMsgIntent);
+            ChameleonDeviceConfig.mainApplicationActivity.sendBroadcast(logMsgIntent);
             return logMsgIntent;
+        }
+
+        @FunctionalInterface
+        public interface TagFunction<SP, TP, UP> {
+            public UP getTag(SP tagName, TP tagValue);
         }
 
         public static boolean writeLogsToXMLFile() {
             File xmlOutFile = createTimestampedXMLLogFile();
             try {
                 FileWriter fileWriter = new FileWriter(xmlOutFile);
-                FuncInterface tagFunc = (String tagName, String value)->String.format(Locale.ENGLISH, "     <%s>%s</%s>\n", tagName, value, tagName);
+                TagFunction<String, String, String> tagFunc = (String tagName, String tagValue) ->
+                        "     <" + tagName + ">" + tagValue + "</" + tagName + ">\n";
                 for(int log = 0; log < loggingQueue.size(); log++) {
                     LogEntry le = loggingQueue.get(log);
                     String[] logXMLEntry = new String[] {
                             "<LogEntry>",
-                            tagFunc.abstractFun("LogID", String.valueOf(le.uniqueLogID)),
-                            tagFunc.abstractFun("TimeStamp", le.logTimestamp),
-                            tagFunc.abstractFun("Level", le.logSeverity),
-                            tagFunc.abstractFun("InvokingClass", le.invokingClassTag),
-                            tagFunc.abstractFun("InvokvingMethod", le.invokingMethodName),
-                            tagFunc.abstractFun("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
+                            tagFunc.getTag("LogID", String.valueOf(le.uniqueLogID)),
+                            tagFunc.getTag("TimeStamp", le.logTimestamp),
+                            tagFunc.getTag("Level", le.logSeverity),
+                            tagFunc.getTag("InvokingClass", le.invokingClassTag),
+                            tagFunc.getTag("InvokvingMethod", le.invokingMethodName),
+                            tagFunc.getTag("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
                             "     <MessageData>\n",
                     };
                     fileWriter.write(String.join("", logXMLEntry));
@@ -214,7 +231,6 @@ public class LibraryLogging {
     public static final String localXMLLoggingFilePrefix = "ChameleonMiniUSBLibrary-XMLLog-";
     public static final String localPlaintextLoggingFilePrefix = "ChameleonMiniUSBLibrary-PlaintextLog-";
 
-    @TargetApi(27)
     public static File createTimestampedLogFile(String baseDirectory, String outputFilePath) {
         String extStoragePathPrefix = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
         File outputFile;
