@@ -1,18 +1,21 @@
 package com.maxieds.chameleonminiusb;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.IBinder;
 import android.support.annotation.IntRange;
 import android.support.annotation.RequiresPermission;
+import android.support.v4.app.ActivityCompat;
 
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.CLEAR_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_ACTIVE_SLOT;
@@ -157,7 +160,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     public static byte[] serialUSBFullCommandResponse, serialUSBBinaryDataResponse;
     public static ChameleonCommandResult parsedSerialUSBCmdResponse;
 
-    @RequiresPermission("com.android.example.USB_PERMISSION")
     public static UsbSerialDevice configureSerialPort(UsbSerialInterface.UsbReadCallback readerCallback) {
 
         if(serialPort != null) {
@@ -165,7 +167,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             serialPort = null;
         }
 
-        UsbManager usbManager = (UsbManager) mainApplicationActivity.getSystemService(Context.USB_SERVICE);
+        UsbManager usbManager = (UsbManager) ((Context) mainApplicationActivity).getSystemService(Context.USB_SERVICE);
         UsbDevice device = null;
         UsbDeviceConnection connection = null;
         HashMap<String, UsbDevice> usbDevices = usbManager.getDeviceList();
@@ -178,12 +180,10 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 int devicePID = device.getProductId();
                 if(deviceVID == CMUSB_REVG_VENDORID && devicePID == CMUSB_REVG_PRODUCTID) {
                     connection = usbManager.openDevice(device);
-                    LibraryLogging.broadcastIntent("CHAMELEON_REVG_ATTACHED");
                     break;
                 }
                 else if(deviceVID == CMUSB_REVE_VENDORID && devicePID == CMUSB_REVE_PRODUCTID) {
                     connection = usbManager.openDevice(device);
-                    LibraryLogging.broadcastIntent("CHAMELEON_REVE_ATTACHED");
                     break;
                 }
             }
@@ -192,6 +192,14 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             LibraryLogging.e(TAG, "USB STATUS: Connection to device unavailable.");
             serialPort = null;
             return serialPort;
+        }
+        else {
+            PendingIntent permIntent = PendingIntent.getBroadcast((Context) mainApplicationActivity, 0, new Intent("com.android.example.USB_PERMISSION"), 0);
+            usbManager.requestPermission(device, permIntent);
+            if(!usbManager.hasPermission(device)) {
+                serialPort = null;
+                return serialPort;
+            }
         }
         serialPort = UsbSerialDevice.createUsbSerialDevice(device, connection);
         if(serialPort != null && serialPort.open()) {
@@ -205,15 +213,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         chameleonDeviceConfigured = true;
         return serialPort;
 
-    }
-
-    @RequiresPermission("com.android.example.USB_PERMISSION")
-    public static boolean handleNewUSBDeviceAttached() {
-        if(serialPort != null) {
-            shutdownSerialConnection();
-        }
-        serialPort = configureSerialPort(usbReaderCallback);
-        return true;
     }
 
     public static boolean shutdownSerialConnection() {
@@ -439,27 +438,13 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
     /**** ChameleonUSBInterface implementation: ****/
 
-    public static Context mainApplicationActivity;
+    public static ChameleonLibraryLoggingReceiver mainApplicationActivity;
 
-    private static ServiceConnection usbServiceConn = new ServiceConnection() {
-        public ChameleonMiniUSBService usbService;
-        public void onServiceConnected(ComponentName className, IBinder binder) {
-            LibraryLogging.d("ServiceConnection","connected");
-            usbService = (ChameleonMiniUSBService) binder;
-        }
-        public void onServiceDisconnected(ComponentName className) {
-            LibraryLogging.d("ServiceConnection","disconnected");
-            usbService = null;
-        }
-    };
-
-    @RequiresPermission("com.android.example.USB_PERMISSION")
-    public boolean chameleonUSBInterfaceInitialize(Context mainActivity) {
+    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivity) {
         return chameleonUSBInterfaceInitialize(mainActivity, LibraryLogging.LocalLoggingLevel.LOG_ADB_ERROR);
     }
 
-    @RequiresPermission("com.android.example.USB_PERMISSION")
-    public boolean chameleonUSBInterfaceInitialize(Context mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
+    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
 
         // setup configurations and constants:
         mainApplicationActivity = mainActivity;
@@ -472,37 +457,46 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 "android.permission.WRITE_EXTERNAL_STORAGE",
                 "android.permission.INTERNET",
                 "com.android.example.USB_PERMISSION",
-                "android.permission.BROADCAST_STICKY",
-                "android.permission.FOREGROUND_SERVICE",
         };
         if (android.os.Build.VERSION.SDK_INT >= 23)
             ((Activity) mainApplicationActivity).requestPermissions(permissions, 200);
+        else
+            ActivityCompat.requestPermissions((Activity) mainApplicationActivity, permissions, 200);
 
-        // Start the foreground service to handle new and removed USB connections:
-        Intent startChameleonUSBService = new Intent(mainApplicationActivity, ChameleonMiniUSBService.class);
-        startChameleonUSBService.setAction("MONITOR_CHAMELEON_USB");
-        mainApplicationActivity.startService(startChameleonUSBService);
-        mainApplicationActivity.bindService(startChameleonUSBService, usbServiceConn, Context.BIND_AUTO_CREATE);
+        // setup the serial port (if possible):
+        serialPort = configureSerialPort(usbReaderCallback);
 
         return true;
 
     }
 
+    public void onNewIntent(Intent intent) {
+        if(intent == null || intent.getAction() == null) {
+            return;
+        }
+        String intentAction = intent.getAction();
+        if(intentAction.equals("ACTION_USB_DEVICE_ATTACHED")) {
+            shutdownSerialConnection();
+            serialPort = configureSerialPort(usbReaderCallback);
+        }
+        else if(intentAction.equals("ACTION_USB_DEVICE_DETACHED")) {
+            shutdownSerialConnection();
+        }
+    }
+
     public boolean chameleonUSBInterfaceShutdown() {
         shutdownSerialConnection();
-        Intent stopChameleonUSBService = new Intent(mainApplicationActivity, ChameleonMiniUSBService.class);
-        mainApplicationActivity.stopService(stopChameleonUSBService);
-        mainApplicationActivity.unbindService(usbServiceConn);
         if(LibraryLogging.writeLogsToFileOnShutdown) {
             LibraryLogging.LogEntry.writeLogsToXMLFile();
             LibraryLogging.LogEntry.writeLogsToPlainTextFile();
         }
         usbReceiversRegistered = false;
-        //THE_CHAMELEON_DEVICE = null;
         return true;
     }
 
     public boolean chameleonPresent() {
+        shutdownSerialConnection();
+        serialPort = configureSerialPort(usbReaderCallback);
         return serialPort != null && chameleonDeviceConfigured;
     }
 

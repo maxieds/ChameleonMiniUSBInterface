@@ -214,6 +214,12 @@ public class Utils {
         return currentTime.format("%Y-%m-%d-%T");
     }
 
+    public static void sleepThreadMillisecond(int ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException ie) {}
+    }
+
     /**** Build Parameters: ****/
     public static String getLibraryVersionCode() {
         return BuildConfig.FULL_LIBRARY_NAME;

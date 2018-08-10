@@ -1,6 +1,7 @@
 package com.maxieds.chameleonminiusb;
 
 import android.app.DownloadManager;
+import android.content.Context;
 import android.os.Handler;
 
 import java.io.File;
@@ -93,7 +94,7 @@ public class XModem {
                     ChameleonDeviceConfig.serialPortLock.release();
                 }
                 if(!XModem.transmissionErrorOccurred) {
-                    DownloadManager downloadManager = (DownloadManager) ChameleonDeviceConfig.mainApplicationActivity.getSystemService(DOWNLOAD_SERVICE);
+                    DownloadManager downloadManager = (DownloadManager) ((Context) ChameleonDeviceConfig.mainApplicationActivity).getSystemService(DOWNLOAD_SERVICE);
                     downloadManager.addCompletedDownload(outfile.getName(), outfile.getName(), true, "application/octet-stream",
                             outfile.getAbsolutePath(), outfile.length(), true);
                     LibraryLogging.i(TAG, "XModem routine completed writing file to \"" + outfile.getName() + "\"");

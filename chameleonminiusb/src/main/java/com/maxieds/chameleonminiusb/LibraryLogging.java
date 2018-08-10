@@ -29,21 +29,6 @@ public class LibraryLogging {
     public static boolean broadcastAllLogsToReceivers = true;
     public static boolean writeLogsToFileOnShutdown = true;
 
-    public static void broadcastIntent(String intentAction) {
-        ChameleonDeviceConfig.mainApplicationActivity.sendBroadcast(new Intent(intentAction));
-    }
-
-    public static IntentFilter getChameleonNotifyFilter(boolean includeLoggingBCasts) {
-        IntentFilter chameleonNotifyFilter = new IntentFilter();
-        chameleonNotifyFilter.addAction("CHAMELEON_REVG_ATTACHED");
-        chameleonNotifyFilter.addAction("CHAMELEON_REVE_ATTACHED");
-        chameleonNotifyFilter.addAction("CHAMELEON_DETACHED");
-        if(includeLoggingBCasts) {
-            chameleonNotifyFilter.addAction("com.maxieds.chameleonminiusb.LibraryLogging");
-        }
-        return chameleonNotifyFilter;
-    }
-
     public static class LogEntry {
 
         /**
@@ -81,6 +66,16 @@ public class LibraryLogging {
             return logEntry;
         }
 
+        public static LogEntry enqueueNewLog(ChameleonCommands.ChameleonCommandResult cmdRxResp) {
+            LogEntry logEntry = LogEntry.newInstance(cmdRxResp);
+            loggingQueue.add(logEntry);
+            if(broadcastAllLogsToReceivers) {
+                logEntry.broadcastAsIntent();
+            }
+            return logEntry;
+        }
+
+        private boolean usesSourceCodeAcct;
         private long uniqueLogID;
         private String logTimestamp;
         private String logSeverity;
@@ -91,6 +86,7 @@ public class LibraryLogging {
 
         public static LogEntry newInstance(LocalLoggingLevel level, String TAG, String[] message) {
             LogEntry le = new LogEntry();
+            le.usesSourceCodeAcct = true;
             le.uniqueLogID = ++uniqueLogCounter;
             le.logTimestamp = Utils.getTimestamp();
             le.logSeverity = "LOGDATA_" + level.name().split("_", 2)[2];
@@ -98,6 +94,19 @@ public class LibraryLogging {
             le.invokingLineNumber = LINE();
             le.invokingMethodName = FUNC();
             le.logMsgs = message;
+            return le;
+        }
+
+        public static LogEntry newInstance(ChameleonCommands.ChameleonCommandResult cmdRxResp) {
+            LogEntry le = new LogEntry();
+            le.usesSourceCodeAcct = false;
+            le.uniqueLogID = ++uniqueLogCounter;
+            le.logTimestamp = Utils.getTimestamp();
+            le.logSeverity = "COMMAND_RESULT";
+            le.invokingClassTag = "";
+            le.invokingLineNumber = -1;
+            le.invokingMethodName = "";
+            le.logMsgs = new String[] { cmdRxResp.issuingCmd, cmdRxResp.cmdResponseMsg, cmdRxResp.cmdResponseData };
             return le;
         }
 
@@ -110,9 +119,9 @@ public class LibraryLogging {
             logMsgIntent.putExtra("UniqueLogID", uniqueLogID);
             logMsgIntent.putExtra("Timestamp", logTimestamp);
             logMsgIntent.putExtra("SourceCodeRefs",
-                    String.format(Locale.ENGLISH, "%s:%s @ %d", invokingClassTag, invokingMethodName, invokingLineNumber));
+                    usesSourceCodeAcct ? String.format(Locale.ENGLISH, "%s:%s @ %d", invokingClassTag, invokingMethodName, invokingLineNumber) : "");
             logMsgIntent.putExtra("MessageData", logMsgs);
-            ChameleonDeviceConfig.mainApplicationActivity.sendBroadcast(logMsgIntent);
+            ChameleonDeviceConfig.mainApplicationActivity.onReceiveNewLoggingData(logMsgIntent);
             return logMsgIntent;
         }
 
