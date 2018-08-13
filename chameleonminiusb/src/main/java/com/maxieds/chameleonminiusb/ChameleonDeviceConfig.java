@@ -50,6 +50,7 @@ import com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet;
 
 import org.apache.commons.lang3.NotImplementedException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -591,20 +592,52 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         XModem.uploadCardFileByXModem(dumpDataStream);
     }
 
-    public boolean verifyChameleonUpload(InputStream dumpInputStream) {
+    public void chameleonUpload(byte[] dumpDataBytes) {
+        XModem.uploadCardFileByXModem(dumpDataBytes);
+    }
+
+    private int getChameleonUIDSize() {
+        int uidSize = 4;
         try {
-            int uidSize = 4;
-            try {
-                uidSize = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
-            } catch(NumberFormatException nfe) {
-                uidSize = 4;
-            }
+            uidSize = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
+        } catch(NumberFormatException nfe) {
+            uidSize = 4;
+        }
+        return uidSize;
+    }
+
+    private byte[] getCardSourceUIDBytes(InputStream dumpInputStream, int uidByteSize) {
+        if(dumpInputStream == null || uidByteSize <= 0) {
+            return null;
+        }
+        try {
             dumpInputStream.reset();
-            byte[] uidBytes = new byte[uidSize];
-            dumpInputStream.read(uidBytes, 0, uidSize);
-            String actualUIDStr = Utils.byteArrayToString(uidBytes).replace(" ", "");
+            if(dumpInputStream.available() < uidByteSize) {
+                return null;
+            }
+            byte[] uidBytes = new byte[uidByteSize];
+            dumpInputStream.read(uidBytes, 0, uidByteSize);
+            return uidBytes;
+        } catch(IOException ioe) {
+            LibraryLogging.e(TAG, ioe.getMessage());
+            ioe.printStackTrace();
+            return null;
+        }
+    }
+
+    private byte[] getCardSourceUIDBytes(byte[] dumpInputBytes, int uidByteSize) {
+        if(dumpInputBytes == null || uidByteSize <= 0 || dumpInputBytes.length < uidByteSize) {
+            return null;
+        }
+        byte[] uidBytes = new byte[uidByteSize];
+        System.arraycopy(dumpInputBytes, 0, uidBytes, 0, uidByteSize);
+        return uidBytes;
+    }
+
+    public boolean diffChameleonUIDBytes(byte[] actualUIDBytes) {
+        try {
+            String actualUIDStr = Utils.byteArrayToString(actualUIDBytes).replace(" ", "");
             String reportedUIDStr = sendCommandToChameleon(QUERY_UID, null).cmdResponseData;
-            Log.i(TAG, "ACTUAL: " + actualUIDStr + "; REPORTED: " + reportedUIDStr);
             if(actualUIDStr.equalsIgnoreCase(reportedUIDStr)) {
                 return true;
             }
@@ -615,7 +648,15 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return false;
     }
 
+    public boolean verifyChameleonUpload(InputStream dumpInputStream) {
+        byte[] uidBytes = getCardSourceUIDBytes(dumpInputStream, getChameleonUIDSize());
+        return diffChameleonUIDBytes(uidBytes);
+    }
 
+    public boolean verifyChameleonUpload(byte[] dumpInputBytes) {
+        byte[] uidBytes = getCardSourceUIDBytes(dumpInputBytes, getChameleonUIDSize());
+        return diffChameleonUIDBytes(uidBytes);
+    }
 
 }
 

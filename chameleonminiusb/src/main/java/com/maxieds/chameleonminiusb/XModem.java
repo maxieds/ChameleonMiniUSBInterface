@@ -62,17 +62,52 @@ public class XModem {
     /**
      * Static variables used internally within the class.
      */
-    public static int fileSize = 0;
-    public static FileOutputStream streamDest;
-    public static InputStream streamSrc;
-    public static File outfile;
-    public static byte CurrentFrameNumber;
-    public static byte Checksum;
+    private static int fileSize = 0;
+    private static FileOutputStream streamDest;
+    private static InputStream streamSrc;
+    private static byte[] streamBytes;
+    private static boolean useInputStream;
+    private static int streamBytesIndex;
+    private static File outfile;
+    private static byte CurrentFrameNumber;
+    private static byte Checksum;
     public static int currentNAKCount;
     public static boolean transmissionErrorOccurred;
-    public static int uploadState;
-    public static byte[] uploadFramebuffer = new byte[XMODEM_BLOCK_SIZE + 4];
-    public static boolean initiallyReadOnly;
+    private static int uploadState;
+    private static byte[] uploadFramebuffer = new byte[XMODEM_BLOCK_SIZE + 4];
+    private static boolean initiallyReadOnly;
+
+    private static int streamDataAvailable() {
+        if(useInputStream && streamSrc != null) {
+            try {
+                return streamSrc.available();
+            } catch(IOException ioe) {
+                return 0;
+            }
+        }
+        else if(streamBytes != null){
+            return Math.max(0, streamBytes.length - streamBytesIndex);
+        }
+        return 0;
+    }
+
+    private static byte[] readStreamData(int numBytes) {
+        if(numBytes <= 0 || streamDataAvailable() < numBytes) {
+            return null;
+        }
+        byte[] payloadBytes = new byte[numBytes];
+        try {
+            if (useInputStream) {
+                streamSrc.read(payloadBytes, 0, numBytes);
+            } else {
+                System.arraycopy(streamBytes, streamBytesIndex, payloadBytes, 0, numBytes);
+                streamBytesIndex += numBytes;
+            }
+        } catch(Exception ioe) {
+            return null;
+        }
+        return payloadBytes;
+    }
 
     /**
      * Completes the XModem download command. Implemented this way to keep the GUI from
@@ -156,14 +191,17 @@ public class XModem {
             uploadFramebuffer[2] = (byte) (255 - CurrentFrameNumber);
             byte[] payloadBytes = new byte[XMODEM_BLOCK_SIZE];
             try {
-                if(streamSrc.available() == 0) {
+                if(streamDataAvailable() < XMODEM_BLOCK_SIZE) {
                     LibraryLogging.d(TAG, "Upload / Sending EOT to device. (STATE: " + ChameleonDeviceConfig.serialUSBState.name() + ")");
                     ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_EOT});
                     EOT = true;
                     eotSleepRunnable.run();
                     return;
                 }
-                streamSrc.read(payloadBytes, 0, XMODEM_BLOCK_SIZE);
+                payloadBytes = readStreamData(XMODEM_BLOCK_SIZE);
+                if(payloadBytes == null) {
+                    throw new IOException("Insufficient data to upload next block to the device.");
+                }
                 System.arraycopy(payloadBytes, 0, uploadFramebuffer, 3, XMODEM_BLOCK_SIZE);
             } catch(IOException ioe) {
                 transmissionErrorOccurred = true;
@@ -192,13 +230,11 @@ public class XModem {
 
     /**
      * Called to initiate the card data upload process.
-     * @param cardInputStream
      * @ref LiveLoggerActivity.actionButtonUploadCard
      */
-    public static void uploadCardFileByXModem(InputStream cardInputStream) {
-        if(ChameleonDeviceConfig.serialPort == null || cardInputStream == null)
+    public static void uploadCardFileByXModemRunner() {
+        if(ChameleonDeviceConfig.serialPort == null || (streamSrc == null && streamBytes == null))
             return;
-        streamSrc = cardInputStream;
         try {
             initiallyReadOnly = (Integer.parseInt(ChameleonDeviceConfig.sendCommandToChameleon(QUERY_READONLY, null).cmdResponseData) == 0);
         } catch(Exception nfe) {
@@ -213,6 +249,19 @@ public class XModem {
         ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 0);
         ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
         ChameleonDeviceConfig.sendCommandToChameleon(UPLOAD_XMODEM, null, false);
+    }
+
+    public static void uploadCardFileByXModem(InputStream cardInputStream) {
+        streamSrc = cardInputStream;
+        useInputStream = true;
+        uploadCardFileByXModemRunner();
+    }
+
+    public static void uploadCardFileByXModem(byte[] cardInputBytes) {
+        streamBytes = cardInputBytes;
+        streamBytesIndex = 0;
+        useInputStream = false;
+        uploadCardFileByXModemRunner();
     }
 
 }

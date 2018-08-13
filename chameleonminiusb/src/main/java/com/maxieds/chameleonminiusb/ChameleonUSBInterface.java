@@ -103,6 +103,7 @@ public interface ChameleonUSBInterface {
      * @ref prepareChameleonEmulationSlot
      */
     void chameleonUpload(InputStream dumpDataStream);
+    void chameleonUpload(byte[] dumpDataBytes);
 
     /**
      * Verify that the chameleonUpload procedure is correct by checking the actual versus
@@ -111,6 +112,7 @@ public interface ChameleonUSBInterface {
      * @return boolean-valued success of upload operation
      */
     boolean verifyChameleonUpload(InputStream dumpDataStream);
+    boolean verifyChameleonUpload(byte[] dumpDataBytes);
 
 
 }
