@@ -60,11 +60,11 @@ repositories {
 In your *project* **build.gradle** file you will also need to include the following:
 ```
 allprojects {
-		repositories {
-			// ...
-			maven { url 'https://jitpack.io' }
-		}
-	}
+    repositories {
+        // ...
+        maven { url 'https://jitpack.io' }
+    }
+}
 ```
 
 ### Application Manifest.xml snippet
@@ -92,7 +92,8 @@ Then the following snippets should be added to the skeleton **Manifest.xml** fil
 client project:
 ```
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.YourUserName.YourPackageName">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.YourUserName.YourPackageName">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:required="false"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:required="false"/>
