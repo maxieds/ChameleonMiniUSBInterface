@@ -34,6 +34,7 @@ core functions below:
 * boolean prepareChameleonEmulationSlot(int, boolean, [ChameleonEmulatedConfigType_t](https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/chameleonminiusb/src/main/java/com/maxieds/chameleonminiusb/ChameleonDeviceConfig.java#L400))
 * boolean chameleonUpload(InputStream)
 * boolean chameleonUpload(byte[])
+* boolean chameleonDownload(File)
 * boolean verifyChameleonUpload(InputStream)
 * boolean verifyChameleonUpload(byte[])
 
