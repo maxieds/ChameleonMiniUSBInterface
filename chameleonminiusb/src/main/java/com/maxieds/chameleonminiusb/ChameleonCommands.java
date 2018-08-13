@@ -221,7 +221,6 @@ public class ChameleonCommands {
          * @param responseBytes
          * @return boolean-valued truth of whether the input is a valid command response.
          */
-        @TargetApi(27)
         public boolean processCommandResponse(byte[] responseBytes) {
             if(!isCommandResponse(responseBytes)) {
                 isValid = false;
