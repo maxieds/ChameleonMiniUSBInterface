@@ -10,6 +10,8 @@ import com.maxieds.chameleonminiusb.ChameleonDeviceConfig.ChameleonBoardType_t;
 import com.maxieds.chameleonminiusb.ChameleonDeviceConfig.ChameleonEmulatedConfigType_t;
 import com.maxieds.chameleonminiusb.LibraryLogging.LocalLoggingLevel;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 
 public interface ChameleonUSBInterface {
@@ -104,6 +106,12 @@ public interface ChameleonUSBInterface {
      */
     void chameleonUpload(InputStream dumpDataStream);
     void chameleonUpload(byte[] dumpDataBytes);
+
+    /**
+     * Initiates a download of the binary card data in the current active slot via XModem.
+     * @param cardOutFile : An output file path in an existing path
+     */
+    void chameleonDownload(File cardOutFile);
 
     /**
      * Verify that the chameleonUpload procedure is correct by checking the actual versus

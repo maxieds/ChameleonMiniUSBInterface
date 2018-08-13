@@ -50,6 +50,8 @@ import com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet;
 
 import org.apache.commons.lang3.NotImplementedException;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -234,7 +236,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         chameleonDeviceConfigured = false;
         serialUSBState = IDLE;
         XModem.EOT = true;
-        XModem.transmissionErrorOccurred = true;
         return true;
 
     }
@@ -274,9 +275,9 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 return;
             }
             else if(serialUSBState.compareTo(DOWNLOAD) == 0) {
-                throw new NotImplementedException("Need XModem.performXModemSerialDownload");
-                //XModem.performXModemSerialDownload(liveRxData);
-                //return;
+                //throw new NotImplementedException("Need XModem.performXModemSerialDownload");
+                XModem.performXModemSerialDownload(liveRxData);
+                return;
             }
             else if(serialUSBState.compareTo(UPLOAD) == 0) {
                 XModem.performXModemSerialUpload(liveRxData);
@@ -296,6 +297,8 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 String strLogData = new String(liveRxData);
                 if(strLogData.length() >= 11 && strLogData.substring(0, 11).equals("110:WAITING")) {
                     serialUSBState = DOWNLOAD;
+                    serialPort.write(new byte[]{BYTE_NAK});
+                    XModem.eotSleepHandler.postDelayed(XModem.eotSleepRunnable, 50);
                     return;
                 }
             }
@@ -594,6 +597,10 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
     public void chameleonUpload(byte[] dumpDataBytes) {
         XModem.uploadCardFileByXModem(dumpDataBytes);
+    }
+
+    public void chameleonDownload(File cardOutFile) {
+        XModem.downloadCardFileByXModem(cardOutFile);
     }
 
     private int getChameleonUIDSize() {

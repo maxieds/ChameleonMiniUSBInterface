@@ -10,7 +10,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static android.content.ContentValues.TAG;
 import static android.content.Context.DOWNLOAD_SERVICE;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.DOWNLOAD_XMODEM;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.QUERY_READONLY;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_READONLY;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.UPLOAD_XMODEM;
@@ -71,11 +73,15 @@ public class XModem {
     private static File outfile;
     private static byte CurrentFrameNumber;
     private static byte Checksum;
-    public static int currentNAKCount;
-    public static boolean transmissionErrorOccurred;
+    private static int currentNAKCount;
+    private static boolean transmissionErrorOccurred;
     private static int uploadState;
     private static byte[] uploadFramebuffer = new byte[XMODEM_BLOCK_SIZE + 4];
     private static boolean initiallyReadOnly;
+
+    public static boolean transmissionError() {
+        return transmissionErrorOccurred;
+    }
 
     private static int streamDataAvailable() {
         if(useInputStream && streamSrc != null) {
@@ -138,7 +144,7 @@ public class XModem {
                 }
                 else {
                     outfile.delete();
-                    LibraryLogging.e(TAG, "ERROR: Maximum number of NAK errors exceeded. Download of data aborted.");
+                    LibraryLogging.e(TAG, "Maximum number of NAK errors exceeded. Download of data aborted.");
                 }
             }
             else if(ChameleonDeviceConfig.serialUSBState.compareTo(UPLOAD) == 0) {
@@ -148,7 +154,7 @@ public class XModem {
                     ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 1);
                 }
                 if(XModem.transmissionErrorOccurred) {
-                    LibraryLogging.e(TAG, "File transmission errors encountered. Maximum number of NAK errors exceeded. Download of data aborted.");
+                    LibraryLogging.e(TAG, "File transmission errors encountered. Maximum number of NAK errors exceeded. Upload of data aborted.");
                 }
             }
         }
@@ -189,10 +195,9 @@ public class XModem {
             uploadFramebuffer[0] = BYTE_SOH;
             uploadFramebuffer[1] = CurrentFrameNumber;
             uploadFramebuffer[2] = (byte) (255 - CurrentFrameNumber);
-            byte[] payloadBytes = new byte[XMODEM_BLOCK_SIZE];
+            byte[] payloadBytes;
             try {
                 if(streamDataAvailable() < XMODEM_BLOCK_SIZE) {
-                    LibraryLogging.d(TAG, "Upload / Sending EOT to device. (STATE: " + ChameleonDeviceConfig.serialUSBState.name() + ")");
                     ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_EOT});
                     EOT = true;
                     eotSleepRunnable.run();
@@ -215,7 +220,6 @@ public class XModem {
             ChameleonDeviceConfig.serialPort.write(uploadFramebuffer);
         }
         else if(statusByte == BYTE_NAK && currentNAKCount <= MAX_NAK_COUNT) {
-            LibraryLogging.d(TAG, "Upload / Sending Another NAK response (#=" + currentNAKCount + ")");
             currentNAKCount++;
             ChameleonDeviceConfig.serialPort.write(uploadFramebuffer);
         }
@@ -262,6 +266,86 @@ public class XModem {
         streamBytesIndex = 0;
         useInputStream = false;
         uploadCardFileByXModemRunner();
+    }
+
+    public static void performXModemSerialDownload(byte[] liveLogData) {
+        if(XModem.EOT)
+            return; // waiting for conclusion of timer to cleanup the download files
+        Log.v(TAG, "Received XModem data (#bytes=" + liveLogData.length + ") ... [" + Utils.byteArrayToString(liveLogData) + "]");
+        byte[] frameBuffer = new byte[XMODEM_BLOCK_SIZE];
+        if (liveLogData != null && liveLogData.length > 0 && liveLogData[0] != XModem.BYTE_EOT) {
+            if (liveLogData[0] == XModem.BYTE_SOH && liveLogData[1] == XModem.CurrentFrameNumber &&
+                    liveLogData[2] == (byte) (255 - XModem.CurrentFrameNumber)) {
+                int dataBufferSize = liveLogData.length - 4;
+                System.arraycopy(liveLogData, 3, frameBuffer, 0, XModem.XMODEM_BLOCK_SIZE);
+                byte checksumByte = liveLogData[dataBufferSize + 3];
+                XModem.Checksum = XModem.CalcChecksum(frameBuffer, XModem.XMODEM_BLOCK_SIZE);
+                if (XModem.Checksum != checksumByte && currentNAKCount < MAX_NAK_COUNT) {
+                    ChameleonDeviceConfig.serialPort.write(new byte[]{ XModem.BYTE_NAK });
+                    currentNAKCount++;
+                    return;
+                }
+                else if(XModem.Checksum != checksumByte) {
+                    XModem.EOT = true;
+                    XModem.transmissionErrorOccurred = true;
+                    ChameleonDeviceConfig.serialPort.write(new byte[] { XModem.BYTE_CAN });
+                    return;
+                }
+                try {
+                    XModem.fileSize += liveLogData.length;
+                    LibraryLogging.d(TAG, "Download Writing Data: frame=" + CurrentFrameNumber + ": " + Utils.byteArrayToString(frameBuffer));
+                    XModem.streamDest.write(frameBuffer);
+                    XModem.streamDest.flush();
+                    XModem.CurrentFrameNumber++;
+                    ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_ACK});
+                } catch (Exception e) {
+                    XModem.EOT = true;
+                    e.printStackTrace();
+                }
+            }
+            else {
+                if(currentNAKCount >= MAX_NAK_COUNT) {
+                    XModem.EOT = true;
+                    XModem.transmissionErrorOccurred = true;
+                    ChameleonDeviceConfig.serialPort.write(new byte[] { XModem.BYTE_CAN });
+                    return;
+                }
+                ChameleonDeviceConfig.serialPort.write(new byte[]{ XModem.BYTE_NAK });
+                currentNAKCount++;
+            }
+        }
+        else {
+            try {
+                ChameleonDeviceConfig.serialPort.write(new byte[]{ XModem.BYTE_ACK });
+            } catch (Exception ioe) {
+                ioe.printStackTrace();
+            }
+            XModem.EOT = true;
+        }
+    }
+
+    public static boolean downloadCardFileByXModem(File cardOutFile) {
+        if(cardOutFile == null) {
+            return false;
+        }
+        try {
+            streamDest = new FileOutputStream(cardOutFile);
+        } catch(IOException ioe) {
+            Log.e(TAG, ioe.getMessage());
+            ioe.printStackTrace();
+            cardOutFile.delete();
+            return false;
+        }
+        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
+        outfile = cardOutFile;
+        fileSize = 0;
+        CurrentFrameNumber = FIRST_FRAME_NUMBER;
+        currentNAKCount = 0;
+        transmissionErrorOccurred = false;
+        EOT = false;
+        ChameleonDeviceConfig.serialUSBState = WAITING_FOR_XMODEM_DOWNLOAD;
+        ChameleonDeviceConfig.sendCommandToChameleon(DOWNLOAD_XMODEM, null);
+        return true;
     }
 
 }
