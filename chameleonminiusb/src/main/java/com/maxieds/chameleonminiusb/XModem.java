@@ -83,7 +83,6 @@ public class XModem {
     public static Runnable eotSleepRunnable = new Runnable() {
 
         public void run() {
-            Log.i(TAG, "run(): STATE = " + ChameleonDeviceConfig.serialUSBState.name());
             if(!XModem.EOT || ChameleonDeviceConfig.serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0 ||
                     ChameleonDeviceConfig.serialUSBState.compareTo(WAITING_FOR_XMODEM_DOWNLOAD) == 0) {
                 eotSleepHandler.postDelayed(this, 50);
@@ -101,7 +100,6 @@ public class XModem {
                     DownloadManager downloadManager = (DownloadManager) ((Context) ChameleonDeviceConfig.mainApplicationActivity).getSystemService(DOWNLOAD_SERVICE);
                     downloadManager.addCompletedDownload(outfile.getName(), outfile.getName(), true, "application/octet-stream",
                             outfile.getAbsolutePath(), outfile.length(), true);
-                    LibraryLogging.i(TAG, "XModem routine completed writing file to \"" + outfile.getName() + "\"");
                 }
                 else {
                     outfile.delete();
@@ -109,7 +107,6 @@ public class XModem {
                 }
             }
             else if(ChameleonDeviceConfig.serialUSBState.compareTo(UPLOAD) == 0) {
-                LibraryLogging.i(TAG, "Cleaning up after XModem UPLOAD ...");
                 ChameleonDeviceConfig.serialUSBState = IDLE;
                 ChameleonDeviceConfig.serialPortLock.release();
                 if(XModem.initiallyReadOnly) {
@@ -117,12 +114,6 @@ public class XModem {
                 }
                 if(XModem.transmissionErrorOccurred) {
                     LibraryLogging.e(TAG, "File transmission errors encountered. Maximum number of NAK errors exceeded. Download of data aborted.");
-                }
-                if(ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(streamSrc)) {
-                    LibraryLogging.i(TAG, "Successfully uploaded card image! :)");
-                }
-                else {
-                    LibraryLogging.e(TAG, "Upload operation failed for card image... :(");
                 }
             }
         }
@@ -167,17 +158,17 @@ public class XModem {
             try {
                 if(streamSrc.available() == 0) {
                     LibraryLogging.d(TAG, "Upload / Sending EOT to device. (STATE: " + ChameleonDeviceConfig.serialUSBState.name() + ")");
-                    EOT = true;
                     ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_EOT});
+                    EOT = true;
                     eotSleepRunnable.run();
                     return;
                 }
                 streamSrc.read(payloadBytes, 0, XMODEM_BLOCK_SIZE);
                 System.arraycopy(payloadBytes, 0, uploadFramebuffer, 3, XMODEM_BLOCK_SIZE);
             } catch(IOException ioe) {
-                EOT = true;
                 transmissionErrorOccurred = true;
                 ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_CAN});
+                EOT = true;
                 eotSleepRunnable.run();
                 return;
             }
@@ -191,9 +182,9 @@ public class XModem {
             ChameleonDeviceConfig.serialPort.write(uploadFramebuffer);
         }
         else {
-            EOT = true;
             transmissionErrorOccurred = true;
             ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_CAN});
+            EOT = true;
             eotSleepRunnable.run();
             return;
         }

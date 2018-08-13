@@ -16,6 +16,7 @@ import android.os.IBinder;
 import android.support.annotation.IntRange;
 import android.support.annotation.RequiresPermission;
 import android.support.v4.app.ActivityCompat;
+import android.util.Log;
 
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.CLEAR_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_ACTIVE_SLOT;
@@ -56,6 +57,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
@@ -282,7 +284,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             else if(serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0) {
                 String strLogData = new String(liveRxData);
                 if(strLogData.length() >= 11 && strLogData.substring(0, 11).equals("110:WAITING")) {
-                    LibraryLogging.i(TAG, "Now ready to upload card data -> STATE:UPLOAD.");
+                    LibraryLogging.d(TAG, "Now ready to upload card data -> STATE:UPLOAD.");
                     serialUSBState = UPLOAD;
                     serialPort.write(new byte[]{BYTE_NAK});
                     XModem.eotSleepHandler.postDelayed(XModem.eotSleepRunnable, 50);
@@ -353,11 +355,14 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
      **** variants of the common RevE command set. ****/
 
     public static ChameleonCommandResult sendRawStringToChameleon(String cmdString, boolean acquireSerialPortLock) {
+        ChameleonCommandResult cmdResult = new ChameleonCommands.ChameleonCommandResult();
         if(acquireSerialPortLock) {
             try {
-                serialPortLock.acquire();
+                if(!serialPortLock.tryAcquire(SERIAL_USB_COMMAND_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                    return cmdResult;
+                }
             } catch (InterruptedException ie) {
-                return null;
+                return cmdResult;
             }
         }
         LAST_CHAMELEON_CMD = cmdString;
@@ -365,7 +370,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             LibraryLogging.e(TAG, "Chameleon device not configured for command \"" + cmdString + "\"");
             return null;
         }
-        ChameleonCommandResult cmdResult = new ChameleonCommands.ChameleonCommandResult();
         cmdResult.issuingCmd = cmdString;
         cmdString += (isRevisionEDevice() ? "\r\n" : "\n\r");
         byte[] sendBuf = cmdString.getBytes(StandardCharsets.UTF_8);
@@ -590,12 +594,17 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
     public boolean verifyChameleonUpload(InputStream dumpInputStream) {
         try {
             int uidSize = 4;
-            uidSize = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
+            try {
+                uidSize = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
+            } catch(NumberFormatException nfe) {
+                uidSize = 4;
+            }
             dumpInputStream.reset();
             byte[] uidBytes = new byte[uidSize];
             dumpInputStream.read(uidBytes, 0, uidSize);
-            String actualUIDStr = Utils.byteArrayToString(uidBytes);
-            String reportedUIDStr = sendCommandToChameleon(QUERY_UID, null).cmdResponseMsg;
+            String actualUIDStr = Utils.byteArrayToString(uidBytes).replace(" ", "");
+            String reportedUIDStr = sendCommandToChameleon(QUERY_UID, null).cmdResponseData;
+            Log.i(TAG, "ACTUAL: " + actualUIDStr + "; REPORTED: " + reportedUIDStr);
             if(actualUIDStr.equalsIgnoreCase(reportedUIDStr)) {
                 return true;
             }
