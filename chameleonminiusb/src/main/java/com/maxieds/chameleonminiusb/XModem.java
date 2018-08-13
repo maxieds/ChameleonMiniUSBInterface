@@ -3,6 +3,7 @@ package com.maxieds.chameleonminiusb;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.os.Handler;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,6 +17,7 @@ import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.IDLE;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.UPLOAD;
+import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_UPLOAD;
 
 /**
@@ -81,7 +83,9 @@ public class XModem {
     public static Runnable eotSleepRunnable = new Runnable() {
 
         public void run() {
-            if (XModem.EOT) {
+            Log.i(TAG, "run(): STATE = " + ChameleonDeviceConfig.serialUSBState.name());
+            if(!XModem.EOT || ChameleonDeviceConfig.serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0 ||
+                    ChameleonDeviceConfig.serialUSBState.compareTo(WAITING_FOR_XMODEM_DOWNLOAD) == 0) {
                 eotSleepHandler.postDelayed(this, 50);
             }
             else if(ChameleonDeviceConfig.serialUSBState.compareTo(DOWNLOAD) == 0){
@@ -106,19 +110,19 @@ public class XModem {
             }
             else if(ChameleonDeviceConfig.serialUSBState.compareTo(UPLOAD) == 0) {
                 LibraryLogging.i(TAG, "Cleaning up after XModem UPLOAD ...");
-                try {
-                    streamSrc.close();
-                } catch (Exception ioe) {
-                    LibraryLogging.e(TAG, ioe.getMessage() + "\n" + ioe.getStackTrace());
-                } finally {
-                    ChameleonDeviceConfig.serialUSBState = IDLE;
-                    if(XModem.initiallyReadOnly) {
-                        ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 1);
-                    }
-                    ChameleonDeviceConfig.serialPortLock.release();
+                ChameleonDeviceConfig.serialUSBState = IDLE;
+                ChameleonDeviceConfig.serialPortLock.release();
+                if(XModem.initiallyReadOnly) {
+                    ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 1);
                 }
                 if(XModem.transmissionErrorOccurred) {
                     LibraryLogging.e(TAG, "File transmission errors encountered. Maximum number of NAK errors exceeded. Download of data aborted.");
+                }
+                if(ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(streamSrc)) {
+                    LibraryLogging.i(TAG, "Successfully uploaded card image! :)");
+                }
+                else {
+                    LibraryLogging.e(TAG, "Upload operation failed for card image... :(");
                 }
             }
         }
@@ -145,10 +149,11 @@ public class XModem {
      * @param liveLogData
      */
     public static void performXModemSerialUpload(byte[] liveLogData) {
-        LibraryLogging.d(TAG, "Received Upload Data (#=" + liveLogData.length + ") ... " + Utils.byteArrayToString(liveLogData));
-        LibraryLogging.d(TAG, "    => " + Utils.bytes2Ascii(liveLogData));
-        if(XModem.EOT || liveLogData == null || liveLogData.length == 0)
+        if(XModem.EOT || liveLogData == null || liveLogData.length == 0) {
+            eotSleepRunnable.run();
             return;
+        }
+        LibraryLogging.v(TAG, "Received Upload Data (#=" + liveLogData.length + ") ... " + Utils.byteArrayToString(liveLogData));
         byte statusByte = liveLogData[0];
         if(uploadState == 0 || uploadState == 1 && statusByte == BYTE_ACK) {
             if(uploadState == 1)
@@ -161,9 +166,10 @@ public class XModem {
             byte[] payloadBytes = new byte[XMODEM_BLOCK_SIZE];
             try {
                 if(streamSrc.available() == 0) {
-                    LibraryLogging.d(TAG, "Upload / Sending EOT to device.");
+                    LibraryLogging.d(TAG, "Upload / Sending EOT to device. (STATE: " + ChameleonDeviceConfig.serialUSBState.name() + ")");
                     EOT = true;
                     ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_EOT});
+                    eotSleepRunnable.run();
                     return;
                 }
                 streamSrc.read(payloadBytes, 0, XMODEM_BLOCK_SIZE);
@@ -172,6 +178,7 @@ public class XModem {
                 EOT = true;
                 transmissionErrorOccurred = true;
                 ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_CAN});
+                eotSleepRunnable.run();
                 return;
             }
             uploadFramebuffer[XMODEM_BLOCK_SIZE + 3] = CalcChecksum(payloadBytes, XMODEM_BLOCK_SIZE);
@@ -187,6 +194,7 @@ public class XModem {
             EOT = true;
             transmissionErrorOccurred = true;
             ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_CAN});
+            eotSleepRunnable.run();
             return;
         }
     }
@@ -200,29 +208,20 @@ public class XModem {
         if(ChameleonDeviceConfig.serialPort == null || cardInputStream == null)
             return;
         streamSrc = cardInputStream;
-        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
-        ChameleonDeviceConfig.serialUSBState = WAITING_FOR_XMODEM_UPLOAD;
         try {
             initiallyReadOnly = (Integer.parseInt(ChameleonDeviceConfig.sendCommandToChameleon(QUERY_READONLY, null).cmdResponseData) == 0);
         } catch(Exception nfe) {
             initiallyReadOnly = false;
         }
-        ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 0);
-        ChameleonDeviceConfig.sendCommandToChameleon(UPLOAD_XMODEM, null);
         fileSize = 0;
         CurrentFrameNumber = FIRST_FRAME_NUMBER;
         currentNAKCount = -1;
         transmissionErrorOccurred = false;
         uploadState = 0;
         EOT = false;
-        while(ChameleonDeviceConfig.serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException ie) {}
-        }
-        ChameleonDeviceConfig.serialUSBState = UPLOAD;
-        ChameleonDeviceConfig.serialPort.write(new byte[]{BYTE_NAK});
-        eotSleepHandler.postDelayed(eotSleepRunnable, 50);
+        ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 0);
+        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
+        ChameleonDeviceConfig.sendCommandToChameleon(UPLOAD_XMODEM, null, false);
     }
 
 }

@@ -2,8 +2,6 @@
 <img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/toast_delivery_logo_usb.png" />
 </center>
 
-<img src="https://github.com/maxieds/ChameleonMiniUSBInterface/blob/master/wiki-images/chameleonusb64.png" /> 
-
 # ChameleonMiniUSBInterface library 
 
 

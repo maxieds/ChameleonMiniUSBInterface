@@ -198,41 +198,41 @@ public class LibraryLogging {
 
     public static void v(String TAG, String MSG) {
         if(LocalLoggingLevel.LOG_ADB_VERBOSE.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
-            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_VERBOSE, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
                 Log.v(TAG + "::" + localLoggingLevel.name(), MSG);
+            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_VERBOSE, TAG, new String[] {MSG});
         }
     }
 
     public static void d(String TAG, String MSG) {
         if(LocalLoggingLevel.LOG_ADB_DEBUG.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
-            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_DEBUG, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
                 Log.d(TAG + "::" + localLoggingLevel.name(), MSG);
+            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_DEBUG, TAG, new String[] {MSG});
         }
     }
 
     public static void i(String TAG, String MSG) {
         if(LocalLoggingLevel.LOG_ADB_INFO.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
-            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_INFO, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
                 Log.i(TAG + "::" + localLoggingLevel.name(), MSG);
+            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_INFO, TAG, new String[] {MSG});
         }
     }
 
     public static void w(String TAG, String MSG) {
         if(LocalLoggingLevel.LOG_ADB_WARN.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
-            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_WARN, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
                 Log.w(TAG + "::" + localLoggingLevel.name(), MSG);
+            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_WARN, TAG, new String[] {MSG});
         }
     }
 
     public static void e(String TAG, String MSG) {
         if(LocalLoggingLevel.LOG_ADB_ERROR.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
-            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_ERROR, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
                 Log.e(TAG + "::" + localLoggingLevel.name(), MSG);
+            LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_ERROR, TAG, new String[] {MSG});
         }
     }
 

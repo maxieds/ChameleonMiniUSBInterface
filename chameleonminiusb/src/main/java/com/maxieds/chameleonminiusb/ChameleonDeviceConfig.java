@@ -29,6 +29,7 @@ import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_CONFIG;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_UID;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.UPLOAD_XMODEM;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.EXPECTING_BINARY_DATA;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.IDLE;
@@ -39,6 +40,7 @@ import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_UPLOAD;
 import static com.maxieds.chameleonminiusb.Utils.BYTE;
+import static com.maxieds.chameleonminiusb.XModem.BYTE_NAK;
 
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
@@ -198,7 +200,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         }
         else {
             PendingIntent permIntent = PendingIntent.getBroadcast((Context) mainApplicationActivity, 0, new Intent("com.android.example.USB_PERMISSION"), 0);
-            //usbManager.requestPermission(device, permIntent);
+            usbManager.requestPermission(device, permIntent);
             if(!usbManager.hasPermission(device)) {
                 LibraryLogging.w(TAG, "ChameleonMiniUSB library does not have permission to access the USB device!");
                 serialPort = null;
@@ -280,7 +282,10 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             else if(serialUSBState.compareTo(WAITING_FOR_XMODEM_UPLOAD) == 0) {
                 String strLogData = new String(liveRxData);
                 if(strLogData.length() >= 11 && strLogData.substring(0, 11).equals("110:WAITING")) {
+                    LibraryLogging.i(TAG, "Now ready to upload card data -> STATE:UPLOAD.");
                     serialUSBState = UPLOAD;
+                    serialPort.write(new byte[]{BYTE_NAK});
+                    XModem.eotSleepHandler.postDelayed(XModem.eotSleepRunnable, 50);
                     return;
                 }
             }
@@ -307,7 +312,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 serialUSBState = IDLE;
             }
             else {
-                serialUSBState = UNEXPECTED_INCOMING_RXDATA;
+                LibraryLogging.e(TAG, "UNEXPECTED_RXDATA: [" + Utils.byteArrayToString(liveRxData) + "] (Current State = " + serialUSBState.name() + ")");
             }
         }
     };
@@ -347,8 +352,14 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
      **** providing an easy-to-use mechanism for translating between the RevE versus RevG
      **** variants of the common RevE command set. ****/
 
-    public static ChameleonCommandResult sendRawStringToChameleon(String cmdString) {
-        serialPortLock.acquireUninterruptibly();
+    public static ChameleonCommandResult sendRawStringToChameleon(String cmdString, boolean acquireSerialPortLock) {
+        if(acquireSerialPortLock) {
+            try {
+                serialPortLock.acquire();
+            } catch (InterruptedException ie) {
+                return null;
+            }
+        }
         LAST_CHAMELEON_CMD = cmdString;
         if(!chameleonDeviceIsConfigured()) {
             LibraryLogging.e(TAG, "Chameleon device not configured for command \"" + cmdString + "\"");
@@ -358,10 +369,17 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         cmdResult.issuingCmd = cmdString;
         cmdString += (isRevisionEDevice() ? "\r\n" : "\n\r");
         byte[] sendBuf = cmdString.getBytes(StandardCharsets.UTF_8);
-        serialUSBState = WAITING_FOR_RESPONSE;
+        SerialUSBStates nextSerialUSBState = WAITING_FOR_RESPONSE;
+        if(cmdResult.issuingCmd.length() >= 6 && cmdResult.issuingCmd.substring(0, 6).equalsIgnoreCase("upload")) {
+            nextSerialUSBState = WAITING_FOR_XMODEM_UPLOAD;
+        }
+        else if(cmdResult.issuingCmd.length() >= 8 && cmdResult.issuingCmd.substring(0, 8).equalsIgnoreCase("download")) {
+            nextSerialUSBState = WAITING_FOR_XMODEM_DOWNLOAD;
+        }
+        serialUSBState = nextSerialUSBState;
         serialPort.write(sendBuf);
         for(int i = 0; i < SERIAL_USB_COMMAND_TIMEOUT / 50; i++) {
-            if(serialUSBState != WAITING_FOR_RESPONSE)
+            if(serialUSBState != nextSerialUSBState)
                 break;
             try {
                 Thread.sleep(50);
@@ -369,7 +387,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 break;
             }
         }
-        if(serialUSBState == WAITING_FOR_RESPONSE) {
+        if(serialUSBState == nextSerialUSBState) {
             LibraryLogging.e(TAG, "Unable to get response for command: \"" + cmdResult.issuingCmd + "\"");
             serialUSBState = IDLE;
             cmdResult.isValid = false;
@@ -377,20 +395,24 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             return cmdResult;
         }
         cmdResult.processCommandResponse(serialUSBFullCommandResponse);
-        serialPortLock.release();
+        if(acquireSerialPortLock)
+            serialPortLock.release();
         return cmdResult;
     }
 
-    public static <CmdArgType> ChameleonCommandResult sendFormattedCommandToChameleon(String cmdFormatStr, CmdArgType cmdArg) {
-        String fullCmdStr = String.format(Locale.ENGLISH, cmdFormatStr, cmdArg);
-        return sendRawStringToChameleon(fullCmdStr);
+    public static ChameleonCommandResult sendRawStringToChameleon(String cmdString) {
+        return sendRawStringToChameleon(cmdString, true);
     }
 
-    public static <CmdArgType> ChameleonCommandResult sendCommandToChameleon(StandardCommandSet cmd, CmdArgType cmdArg) {
+    public static <CmdArgType> ChameleonCommandResult sendCommandToChameleon(StandardCommandSet cmd, CmdArgType cmdArg, boolean acquireSerialPortLock) {
         int RevEGBoardIndex = isRevisionEDevice() ? 0 : 1;
         String cmdFormatStr = ChameleonCommands.getCommandFormatString(cmd)[RevEGBoardIndex];
         String fullCmdStr = String.format(Locale.ENGLISH, cmdFormatStr, cmdArg);
-        return sendRawStringToChameleon(fullCmdStr);
+        return sendRawStringToChameleon(fullCmdStr, acquireSerialPortLock);
+    }
+
+    public static <CmdArgType> ChameleonCommandResult sendCommandToChameleon(StandardCommandSet cmd, CmdArgType cmdArg) {
+        return sendCommandToChameleon(cmd, cmdArg, true);
     }
 
     /**** Chameleon Board UID configuration and real-time / live setting functions ****/
@@ -561,20 +583,27 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return slotOpSuccess && setConfigResult.isValid;
     }
 
-    public String chameleonUpload(byte[] tagDataBytes) {
-
-        // TODO
-
-        serialUSBState = IDLE;
-        ChameleonCommandResult nextUIDResult = sendCommandToChameleon(QUERY_UID, null);
-        return nextUIDResult.cmdResponseData;
+    public void chameleonUpload(InputStream dumpDataStream) {
+        XModem.uploadCardFileByXModem(dumpDataStream);
     }
 
-    public String chameleonUpload(InputStream dumpDataStream) {
-        XModem.uploadCardFileByXModem(dumpDataStream);
-        serialUSBState = IDLE;
-        ChameleonCommandResult nextUIDResult = sendCommandToChameleon(QUERY_UID, null);
-        return nextUIDResult.cmdResponseData;
+    public boolean verifyChameleonUpload(InputStream dumpInputStream) {
+        try {
+            int uidSize = 4;
+            uidSize = Integer.parseInt(sendCommandToChameleon(GET_UID_SIZE, null).cmdResponseData);
+            dumpInputStream.reset();
+            byte[] uidBytes = new byte[uidSize];
+            dumpInputStream.read(uidBytes, 0, uidSize);
+            String actualUIDStr = Utils.byteArrayToString(uidBytes);
+            String reportedUIDStr = sendCommandToChameleon(QUERY_UID, null).cmdResponseMsg;
+            if(actualUIDStr.equalsIgnoreCase(reportedUIDStr)) {
+                return true;
+            }
+        } catch(Exception ioe) {
+            LibraryLogging.e(TAG, "Unable to verify card upload: " + ioe.getMessage());
+            ioe.printStackTrace();
+        }
+        return false;
     }
 
 
