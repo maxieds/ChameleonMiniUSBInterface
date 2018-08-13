@@ -37,13 +37,13 @@ public class LibraryLogging {
          * @return integer line number
          */
         public static int LINE() {
-            int invokingLine = Thread.currentThread().getStackTrace()[4].getLineNumber();
+            int invokingLine = Thread.currentThread().getStackTrace()[6].getLineNumber();
             lastLineNumber = invokingLine;
             return invokingLine;
         }
 
         public static String FUNC() {
-            String invokingMethodName = Thread.currentThread().getStackTrace()[4].getMethodName();
+            String invokingMethodName = Thread.currentThread().getStackTrace()[6].getMethodName();
             lastMethodName = invokingMethodName;
             return invokingMethodName;
         }
@@ -89,7 +89,7 @@ public class LibraryLogging {
             le.usesSourceCodeAcct = true;
             le.uniqueLogID = ++uniqueLogCounter;
             le.logTimestamp = Utils.getTimestamp();
-            le.logSeverity = "LOGDATA_" + level.name().split("_", 2)[2];
+            le.logSeverity = level.name();
             le.invokingClassTag = TAG;
             le.invokingLineNumber = LINE();
             le.invokingMethodName = FUNC();
@@ -197,42 +197,42 @@ public class LibraryLogging {
     public static boolean SUPPORT_ADB_LOGGING = true;
 
     public static void v(String TAG, String MSG) {
-        if(LocalLoggingLevel.LOG_ADB_VERBOSE.compareTo(localLoggingLevel) > 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
+        if(LocalLoggingLevel.LOG_ADB_VERBOSE.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
             LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_VERBOSE, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
-                Log.v(TAG, MSG);
+                Log.v(TAG + "::" + localLoggingLevel.name(), MSG);
         }
     }
 
     public static void d(String TAG, String MSG) {
-        if(LocalLoggingLevel.LOG_ADB_DEBUG.compareTo(localLoggingLevel) > 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
+        if(LocalLoggingLevel.LOG_ADB_DEBUG.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
             LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_DEBUG, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
-                Log.d(TAG, MSG);
+                Log.d(TAG + "::" + localLoggingLevel.name(), MSG);
         }
     }
 
     public static void i(String TAG, String MSG) {
-        if(LocalLoggingLevel.LOG_ADB_INFO.compareTo(localLoggingLevel) > 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
+        if(LocalLoggingLevel.LOG_ADB_INFO.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
             LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_INFO, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
-                Log.i(TAG, MSG);
+                Log.i(TAG + "::" + localLoggingLevel.name(), MSG);
         }
     }
 
     public static void w(String TAG, String MSG) {
-        if(LocalLoggingLevel.LOG_ADB_WARN.compareTo(localLoggingLevel) > 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
+        if(LocalLoggingLevel.LOG_ADB_WARN.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
             LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_WARN, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
-                Log.w(TAG, MSG);
+                Log.w(TAG + "::" + localLoggingLevel.name(), MSG);
         }
     }
 
     public static void e(String TAG, String MSG) {
-        if(LocalLoggingLevel.LOG_ADB_ERROR.compareTo(localLoggingLevel) > 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
+        if(LocalLoggingLevel.LOG_ADB_ERROR.compareTo(localLoggingLevel) <= 0 && localLoggingLevel.compareTo(LOG_ADB_OFF) != 0) {
             LogEntry.enqueueNewLog(LocalLoggingLevel.LOG_ADB_ERROR, TAG, new String[] {MSG});
             if(SUPPORT_ADB_LOGGING)
-                Log.e(TAG, MSG);
+                Log.e(TAG + "::" + localLoggingLevel.name(), MSG);
         }
     }
 

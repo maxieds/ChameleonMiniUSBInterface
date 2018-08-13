@@ -75,7 +75,7 @@ public class ChameleonCommands {
             case CLEAR_ACTIVE_SLOT:
                 return new String[] {"clearmy", "CLEAR"};
             case GET_RSSI_VOLTAGE:
-                return new String[] {"rssimy", "RSSI?"};
+                return new String[] {"rssimy?", "RSSI?"};
             default:
                 return null;
         }
@@ -167,6 +167,8 @@ public class ChameleonCommands {
 
     }
 
+    public static final String NODATA = "<NO-DATA>";
+
     public static class ChameleonCommandResult {
 
         public String issuingCmd;
@@ -176,17 +178,17 @@ public class ChameleonCommands {
         public boolean isValid;
 
         ChameleonCommandResult() {
-            issuingCmd = "<NO-CMD>";
+            issuingCmd = NODATA;
             cmdResponseMsg = "";
-            cmdResponseData = "<NO-DATA>";
+            cmdResponseData = NODATA;
             cmdResponseCode = -1;
             isValid = false;
         }
 
         ChameleonCommandResult(String initCmd) {
             issuingCmd = initCmd;
-            cmdResponseMsg = "";
-            cmdResponseData = "<NO-DATA>";
+            cmdResponseMsg = NODATA;
+            cmdResponseData = NODATA;
             cmdResponseCode = -1;
             isValid = false;
         }
@@ -202,13 +204,11 @@ public class ChameleonCommands {
          * @return boolean whether the log data is a response to an issued command
          */
         public static boolean isCommandResponse(byte[] liveLogData) {
-            LibraryLogging.i(TAG, "liveLogData: " + new String(liveLogData));
-            String respText = new String(liveLogData).split("[\n\r]+")[0];
-            String[] respText2 = new String(liveLogData).split("=");
+            String respText = (new String(liveLogData)).split("[\n\r]+")[0];
             if(SerialRespCode.RESP_CODE_TEXT_MAP.get(respText) != null)
                 return true;
-            respText = new String(liveLogData).split(":")[0];
-            if(respText.length() >= 3 && SerialRespCode.RESP_CODE_TEXT_MAP2.get(respText.substring(respText.length() - 3)) != null)
+            respText = (new String(liveLogData)).split(":")[0];
+            if(respText != null && respText.length() >= 3 && SerialRespCode.RESP_CODE_TEXT_MAP2.get(respText.substring(respText.length() - 3)) != null)
                 return true;
             return false;
         }
@@ -224,18 +224,17 @@ public class ChameleonCommands {
         @TargetApi(27)
         public boolean processCommandResponse(byte[] responseBytes) {
             if(!isCommandResponse(responseBytes)) {
-                LibraryLogging.e(TAG, "No command response for \"" + issuingCmd + "\" : RAWDATA(" + Utils.byteArrayToString(responseBytes) + ")!");
                 isValid = false;
                 return false;
             }
             String[] splitCmdResp = (new String(responseBytes)).split("[\n\r]+");
             cmdResponseMsg = splitCmdResp[0];
-            cmdResponseCode = Integer.parseInt(splitCmdResp[0].substring(0, 3));
+            cmdResponseCode = Integer.parseInt(splitCmdResp[0].split(":")[0]);
             if(splitCmdResp.length >= 2) {
                 cmdResponseData = String.join("\n", Arrays.copyOfRange(splitCmdResp, 1, splitCmdResp.length));
             }
             else {
-                cmdResponseData = "<NO-DATA>";
+                cmdResponseData = NODATA;
             }
             isValid = (cmdResponseCode == SerialRespCode.OK.toInteger()) || (cmdResponseCode == SerialRespCode.OK_WITH_TEXT.toInteger());
             return true;
