@@ -336,7 +336,6 @@ public class XModem {
             cardOutFile.delete();
             return false;
         }
-        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
         outfile = cardOutFile;
         fileSize = 0;
         CurrentFrameNumber = FIRST_FRAME_NUMBER;
@@ -344,7 +343,8 @@ public class XModem {
         transmissionErrorOccurred = false;
         EOT = false;
         ChameleonDeviceConfig.serialUSBState = WAITING_FOR_XMODEM_DOWNLOAD;
-        ChameleonDeviceConfig.sendCommandToChameleon(DOWNLOAD_XMODEM, null);
+        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
+        ChameleonDeviceConfig.sendCommandToChameleon(DOWNLOAD_XMODEM, null, false);
         return true;
     }
 

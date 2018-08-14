@@ -275,7 +275,6 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 return;
             }
             else if(serialUSBState.compareTo(DOWNLOAD) == 0) {
-                //throw new NotImplementedException("Need XModem.performXModemSerialDownload");
                 XModem.performXModemSerialDownload(liveRxData);
                 return;
             }
