@@ -229,4 +229,16 @@ public class Utils {
         return BuildConfig.BUILD_TIMESTAMP;
     }
 
+    public static String stringJoin(String delimiter, String[] strArray) {
+        if(strArray == null)
+            return null;
+        else if(strArray.length == 0)
+            return "";
+        String retStr = strArray[0];
+        for(int s = 1; s < strArray.length; s++) {
+            retStr += delimiter + strArray[s];
+        }
+        return retStr;
+    }
+
 }

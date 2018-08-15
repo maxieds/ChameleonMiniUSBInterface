@@ -145,7 +145,7 @@ public class LibraryLogging {
                             XMLTAG("InvokingLineNumber", String.valueOf(le.invokingLineNumber)),
                             "     <MessageData>\n",
                     };
-                    fileWriter.write(String.join("", logXMLEntry));
+                    fileWriter.write(Utils.stringJoin("", logXMLEntry));
                     for(int msg = 0; msg < le.logMsgs.length; msg++) {
                         String msgTagLine = String.format(Locale.ENGLISH, "          <Msg>%s</Msg>\n", le.logMsgs[msg]);
                         fileWriter.write(msgTagLine);

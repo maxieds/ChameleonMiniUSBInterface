@@ -230,7 +230,7 @@ public class ChameleonCommands {
             cmdResponseMsg = splitCmdResp[0];
             cmdResponseCode = Integer.parseInt(splitCmdResp[0].split(":")[0]);
             if(splitCmdResp.length >= 2) {
-                cmdResponseData = String.join("\n", Arrays.copyOfRange(splitCmdResp, 1, splitCmdResp.length));
+                cmdResponseData = Utils.stringJoin("\n", Arrays.copyOfRange(splitCmdResp, 1, splitCmdResp.length));
             }
             else {
                 cmdResponseData = NODATA;
