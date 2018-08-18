@@ -22,8 +22,8 @@ android {
     defaultConfig {
         minSdkVersion 25
         targetSdkVersion 27
-        versionCode 3
-        versionName "v1.2"
+        versionCode 4
+        versionName "v1.3"
         archivesBaseName = "ChameleonUSBSupportLibrary-" + versionName + "(" + versionCode + ")"
         buildConfigField "String", "BUILD_TIMESTAMP", "\"" + getBuildDateTimeStamp() + "\""
         buildConfigField "String", "FULL_LIBRARY_NAME", "\"" + getBuildDateTimeStamp() + "\""

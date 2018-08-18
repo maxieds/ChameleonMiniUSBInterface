@@ -104,24 +104,8 @@ public interface ChameleonUSBInterface {
      * @param dumpDataStream : the ingested data bytes (a.k.a. Mifare dumps) to be written to the Chameleon.
      * @ref prepareChameleonEmulationSlot
      */
-    void chameleonUpload(InputStream dumpDataStream);
-    void chameleonUpload(byte[] dumpDataBytes);
-
-    /**
-     * Initiates a download of the binary card data in the current active slot via XModem.
-     * @param cardOutFile : An output file path in an existing path
-     */
-    void chameleonDownload(File cardOutFile);
-
-    /**
-     * Verify that the chameleonUpload procedure is correct by checking the actual versus
-     * reported UID bytes.
-     * @param dumpDataStream
-     * @return boolean-valued success of upload operation
-     */
-    boolean verifyChameleonUpload(InputStream dumpDataStream);
-    boolean verifyChameleonUpload(byte[] dumpDataBytes);
-
+    boolean chameleonUpload(InputStream dumpDataStream);
+    boolean chameleonUpload(byte[] dumpDataBytes);
 
 }
 

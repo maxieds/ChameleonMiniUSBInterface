@@ -83,6 +83,12 @@ public class XModem {
         return transmissionErrorOccurred;
     }
 
+    public static boolean uploadUseInputStream() { return useInputStream; }
+
+    public static InputStream getUploadInputStream() { return streamSrc; }
+
+    public static byte[] getUploadByteStream() { return streamBytes; }
+
     private static int streamDataAvailable() {
         if(useInputStream && streamSrc != null) {
             try {

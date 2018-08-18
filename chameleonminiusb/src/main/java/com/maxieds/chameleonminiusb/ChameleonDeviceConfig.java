@@ -12,6 +12,7 @@ import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.AsyncTask;
 import android.os.IBinder;
 import android.support.annotation.IntRange;
 import android.support.annotation.RequiresPermission;
@@ -65,6 +66,9 @@ import java.util.concurrent.TimeUnit;
 public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
     private static final String TAG = ChameleonDeviceConfig.class.getSimpleName();
+
+    public static final int SHORT_PAUSE = 25;
+    public static final int MEDIUM_PAUSE = 1250;
 
     /**** This is the global Chameleon Board device configuration that should be refered to from
      **** all instances in *both* this library code *AND* in the customized day-to-day Android
@@ -590,16 +594,45 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return slotOpSuccess && setConfigResult.isValid;
     }
 
-    public void chameleonUpload(InputStream dumpDataStream) {
+    private boolean execUploadReturnValue = false;
+
+    private boolean executeChameleonUpload() {
+        execUploadReturnValue = false;
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                while(!XModem.EOT) {
+                    try {
+                        Thread.sleep(2 * SHORT_PAUSE);
+                    } catch(InterruptedException ie) {
+                        break;
+                    }
+                }
+                try {
+                    Thread.sleep(MEDIUM_PAUSE);
+                } catch(InterruptedException ie) {}
+                if(XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadInputStream())) {
+                    execUploadReturnValue = true;
+                }
+                else if(!XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadByteStream())) {
+                    execUploadReturnValue = true;
+                }
+                else {
+                    execUploadReturnValue = false;
+                }
+            }
+        });
+        return execUploadReturnValue;
+    }
+
+    public boolean chameleonUpload(InputStream dumpDataStream) {
         XModem.uploadCardFileByXModem(dumpDataStream);
+        return executeChameleonUpload();
     }
 
-    public void chameleonUpload(byte[] dumpDataBytes) {
+    public boolean chameleonUpload(byte[] dumpDataBytes) {
         XModem.uploadCardFileByXModem(dumpDataBytes);
-    }
-
-    public void chameleonDownload(File cardOutFile) {
-        XModem.downloadCardFileByXModem(cardOutFile);
+        return executeChameleonUpload();
     }
 
     private int getChameleonUIDSize() {
@@ -640,7 +673,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return uidBytes;
     }
 
-    public boolean diffChameleonUIDBytes(byte[] actualUIDBytes) {
+    private boolean diffChameleonUIDBytes(byte[] actualUIDBytes) {
         try {
             String actualUIDStr = Utils.byteArrayToString(actualUIDBytes).replace(" ", "");
             String reportedUIDStr = sendCommandToChameleon(QUERY_UID, null).cmdResponseData;
@@ -654,14 +687,43 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return false;
     }
 
-    public boolean verifyChameleonUpload(InputStream dumpInputStream) {
+    private boolean verifyChameleonUpload(InputStream dumpInputStream) {
         byte[] uidBytes = getCardSourceUIDBytes(dumpInputStream, getChameleonUIDSize());
         return diffChameleonUIDBytes(uidBytes);
     }
 
-    public boolean verifyChameleonUpload(byte[] dumpInputBytes) {
+    private boolean verifyChameleonUpload(byte[] dumpInputBytes) {
         byte[] uidBytes = getCardSourceUIDBytes(dumpInputBytes, getChameleonUIDSize());
         return diffChameleonUIDBytes(uidBytes);
+    }
+
+    private boolean execDownloadReturnValue = false;
+
+    public boolean chameleonDownload(File cardOutFile) {
+        execDownloadReturnValue = false;
+        XModem.downloadCardFileByXModem(cardOutFile);
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                while(!XModem.EOT) {
+                    try {
+                        Thread.sleep(2 * SHORT_PAUSE);
+                    } catch(InterruptedException ie) {
+                        break;
+                    }
+                }
+                try {
+                    Thread.sleep(MEDIUM_PAUSE);
+                } catch(InterruptedException ie) {}
+                if(!XModem.transmissionError()) {
+                    execDownloadReturnValue = true;
+                }
+                else {
+                    execDownloadReturnValue = false;
+                }
+            }
+        });
+        return execDownloadReturnValue;
     }
 
 }
