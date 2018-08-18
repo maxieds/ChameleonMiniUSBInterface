@@ -594,35 +594,26 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return slotOpSuccess && setConfigResult.isValid;
     }
 
-    private boolean execUploadReturnValue = false;
-
     private boolean executeChameleonUpload() {
-        execUploadReturnValue = false;
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                while(!XModem.EOT) {
-                    try {
-                        Thread.sleep(2 * SHORT_PAUSE);
-                    } catch(InterruptedException ie) {
-                        break;
-                    }
-                }
-                try {
-                    Thread.sleep(MEDIUM_PAUSE);
-                } catch(InterruptedException ie) {}
-                if(XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadInputStream())) {
-                    execUploadReturnValue = true;
-                }
-                else if(!XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadByteStream())) {
-                    execUploadReturnValue = true;
-                }
-                else {
-                    execUploadReturnValue = false;
-                }
+        while(!XModem.EOT) {
+            try {
+                Thread.sleep(2 * SHORT_PAUSE);
+            } catch(InterruptedException ie) {
+                break;
             }
-        });
-        return execUploadReturnValue;
+        }
+        try {
+            Thread.sleep(MEDIUM_PAUSE);
+        } catch(InterruptedException ie) {}
+        if(XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadInputStream())) {
+            return true;
+        }
+        else if(!XModem.uploadUseInputStream() && ChameleonDeviceConfig.THE_CHAMELEON_DEVICE.verifyChameleonUpload(XModem.getUploadByteStream())) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     public boolean chameleonUpload(InputStream dumpDataStream) {
@@ -697,33 +688,24 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         return diffChameleonUIDBytes(uidBytes);
     }
 
-    private boolean execDownloadReturnValue = false;
-
     public boolean chameleonDownload(File cardOutFile) {
-        execDownloadReturnValue = false;
         XModem.downloadCardFileByXModem(cardOutFile);
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                while(!XModem.EOT) {
-                    try {
-                        Thread.sleep(2 * SHORT_PAUSE);
-                    } catch(InterruptedException ie) {
-                        break;
-                    }
-                }
-                try {
-                    Thread.sleep(MEDIUM_PAUSE);
-                } catch(InterruptedException ie) {}
-                if(!XModem.transmissionError()) {
-                    execDownloadReturnValue = true;
-                }
-                else {
-                    execDownloadReturnValue = false;
-                }
+        while(!XModem.EOT) {
+            try {
+                Thread.sleep(2 * SHORT_PAUSE);
+            } catch(InterruptedException ie) {
+                break;
             }
-        });
-        return execDownloadReturnValue;
+        }
+        try {
+            Thread.sleep(MEDIUM_PAUSE);
+        } catch(InterruptedException ie) {}
+        if(!XModem.transmissionError()) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
 }
