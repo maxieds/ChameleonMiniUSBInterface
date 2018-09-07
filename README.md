@@ -40,12 +40,13 @@ core functions below:
 ### Application build.gradle snippet
 
 We can automatically include the library into an existing Android Studio project in the usual way
-using the [JitPack/IO](https://jitpack.io/) mechanisms. In particular, you can include the
+using the [JitPack/IO](https://jitpack.io/#maxieds/ChameleonMiniUSBInterface/BreadCoStable-2018-09-06) mechanisms. In particular, you can include the
 following snippets in your *application* (i.e., *NOT* project) **build.gradle** file:
 ```
 dependencies {
     // ...
-    implementation 'com.github.maxieds:ChameleonMiniUSBInterface:master-SNAPSHOT'
+    //implementation 'com.github.maxieds:ChameleonMiniUSBInterface:master-SNAPSHOT'
+    implementation 'com.github.maxieds:ChameleonMiniUSBInterface:BreadCoStable-2018-09-06'
 }
 
 apply plugin: 'maven'
