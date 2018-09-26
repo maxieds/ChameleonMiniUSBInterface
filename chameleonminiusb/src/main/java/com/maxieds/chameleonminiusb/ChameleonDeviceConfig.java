@@ -1,23 +1,12 @@
 package com.maxieds.chameleonminiusb;
 
-import android.app.Activity;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.ServiceConnection;
-import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
-import android.os.AsyncTask;
-import android.os.IBinder;
 import android.support.annotation.IntRange;
-import android.support.annotation.RequiresPermission;
-import android.support.v4.app.ActivityCompat;
-import android.util.Log;
 
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.CLEAR_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.GET_ACTIVE_SLOT;
@@ -31,12 +20,10 @@ import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_ACTIVE_SLOT;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_CONFIG;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_UID;
-import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.UPLOAD_XMODEM;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.EXPECTING_BINARY_DATA;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.IDLE;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.PAUSED;
-import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.UNEXPECTED_INCOMING_RXDATA;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.UPLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_RESPONSE;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.WAITING_FOR_XMODEM_DOWNLOAD;
@@ -49,10 +36,7 @@ import com.felhr.usbserial.UsbSerialInterface;
 import com.maxieds.chameleonminiusb.ChameleonCommands.ChameleonCommandResult;
 import com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet;
 
-import org.apache.commons.lang3.NotImplementedException;
-
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -179,7 +163,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             serialPort = null;
         }
 
-        UsbManager usbManager = (UsbManager) ((Context) mainApplicationActivity).getSystemService(Context.USB_SERVICE);
+        UsbManager usbManager = (UsbManager) mainApplicationActivity.getDefaultContext().getSystemService(Context.USB_SERVICE);
         UsbDevice device = null;
         UsbDeviceConnection connection = null;
         HashMap<String, UsbDevice> usbDevices = usbManager.getDeviceList();
@@ -208,7 +192,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
             return serialPort;
         }
         else {
-            PendingIntent permIntent = PendingIntent.getBroadcast((Context) mainApplicationActivity, 0, new Intent("com.android.example.USB_PERMISSION"), 0);
+            PendingIntent permIntent = PendingIntent.getBroadcast(mainApplicationActivity.getDefaultContext(), 0, new Intent("com.android.example.USB_PERMISSION"), 0);
             usbManager.requestPermission(device, permIntent);
             if(!usbManager.hasPermission(device)) {
                 LibraryLogging.w(TAG, "ChameleonMiniUSB library does not have permission to access the USB device!");
@@ -266,7 +250,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 summaryByteStr = "SERIAL USB STATE: \"" + serialUSBState.name() + "\"\n" + summaryByteStr;
             }
             final String summaryPrintStr = summaryByteStr;
-            ((Activity) mainApplicationActivity).runOnUiThread(new Runnable() {
+            mainApplicationActivity.getRunOnUiThreadHandler(new Runnable() {
                 public void run() {
                     LibraryLogging.v(TAG, summaryPrintStr);
                 }
@@ -515,13 +499,13 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
 
     /**** ChameleonUSBInterface implementation: ****/
 
-    public static ChameleonLibraryLoggingReceiver mainApplicationActivity;
+    public static ChameleonLibraryInterfaceReceiver mainApplicationActivity;
 
-    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivity) {
+    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryInterfaceReceiver mainActivity) {
         return chameleonUSBInterfaceInitialize(mainActivity, LibraryLogging.LocalLoggingLevel.LOG_ADB_ERROR);
     }
 
-    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
+    public boolean chameleonUSBInterfaceInitialize(ChameleonLibraryInterfaceReceiver mainActivity, LibraryLogging.LocalLoggingLevel localLoggingLevel) {
 
         // setup configurations and constants:
         mainApplicationActivity = mainActivity;
@@ -535,7 +519,7 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
                 "android.permission.INTERNET",
                 "com.android.example.USB_PERMISSION",
         };
-        ActivityCompat.requestPermissions((Activity) mainApplicationActivity, permissions, 0);
+        mainApplicationActivity.getRequestPermissionsHandler(permissions, 0);
 
         // setup the serial port (if possible):
         serialPort = configureSerialPort(usbReaderCallback);

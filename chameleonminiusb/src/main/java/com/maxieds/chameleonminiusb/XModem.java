@@ -144,7 +144,7 @@ public class XModem {
                     ChameleonDeviceConfig.serialPortLock.release();
                 }
                 if(!XModem.transmissionErrorOccurred) {
-                    DownloadManager downloadManager = (DownloadManager) ((Context) ChameleonDeviceConfig.mainApplicationActivity).getSystemService(DOWNLOAD_SERVICE);
+                    DownloadManager downloadManager = (DownloadManager) ChameleonDeviceConfig.mainApplicationActivity.getDefaultContext().getSystemService(DOWNLOAD_SERVICE);
                     downloadManager.addCompletedDownload(outfile.getName(), outfile.getName(), true, "application/octet-stream",
                             outfile.getAbsolutePath(), outfile.length(), true);
                 }

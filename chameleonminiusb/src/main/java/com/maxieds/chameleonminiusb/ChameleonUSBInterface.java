@@ -1,8 +1,5 @@
 package com.maxieds.chameleonminiusb;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
 import android.support.annotation.IntRange;
 
@@ -10,8 +7,6 @@ import com.maxieds.chameleonminiusb.ChameleonDeviceConfig.ChameleonBoardType_t;
 import com.maxieds.chameleonminiusb.ChameleonDeviceConfig.ChameleonEmulatedConfigType_t;
 import com.maxieds.chameleonminiusb.LibraryLogging.LocalLoggingLevel;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 
 public interface ChameleonUSBInterface {
@@ -25,7 +20,7 @@ public interface ChameleonUSBInterface {
      * @return truth value of whether the initialization operation was successful.
      * @see ChameleonDeviceConfig
      */
-    boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivityHandler);
+    boolean chameleonUSBInterfaceInitialize(ChameleonLibraryInterfaceReceiver mainActivityHandler);
 
     /**
      * Call one of these functions to initialize the Chameleon USB library.
@@ -37,7 +32,7 @@ public interface ChameleonUSBInterface {
      * @return truth value of whether the initialization operation was successful.
      * @see ChameleonDeviceConfig
      */
-    boolean chameleonUSBInterfaceInitialize(ChameleonLibraryLoggingReceiver mainActivityHandler, LocalLoggingLevel libraryLoggingLevel);
+    boolean chameleonUSBInterfaceInitialize(ChameleonLibraryInterfaceReceiver mainActivityHandler, LocalLoggingLevel libraryLoggingLevel);
 
     /**
      * Since the library lacks an activity, we cannot directly receive intents recognizing that
