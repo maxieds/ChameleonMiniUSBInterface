@@ -83,7 +83,7 @@ public class Utils {
         StringBuilder hstr = new StringBuilder();
         hstr.append(String.format(Locale.ENGLISH, "%02x", bytes[0]));
         for (int b = 1; b < bytes.length; b++)
-            hstr.append(" " + String.format(Locale.ENGLISH, "%02x", bytes[b]));
+            hstr.append(String.format(Locale.ENGLISH, "%02x", bytes[b]));
         return hstr.toString();
     }
 
