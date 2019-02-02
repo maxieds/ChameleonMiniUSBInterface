@@ -7,6 +7,10 @@ def getBuildDateTimeStamp() {
     return new String("BuildTime=" + df.format(new Date()).toString());
 }
 
+def getCurrentVersionName() {
+    return "v1.3.3-beta";
+}
+
 android {
 
     group = 'com.maxieds.chameleonminiusb'
@@ -20,10 +24,10 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 25
+        minSdkVersion 26
         targetSdkVersion 27
-        versionCode 5
-        versionName "v1.3.2"
+        versionCode 6
+        versionName getCurrentVersionName()
         archivesBaseName = "ChameleonUSBSupportLibrary-" + versionName + "(" + versionCode + ")"
         buildConfigField "String", "BUILD_TIMESTAMP", "\"" + getBuildDateTimeStamp() + "\""
         buildConfigField "String", "FULL_LIBRARY_NAME", "\"" + getBuildDateTimeStamp() + "\""
@@ -45,3 +49,16 @@ repositories {
     maven { url "https://maven.google.com" }
     maven { url "https://jitpack.io" }
 }
+
+task clearJar(type: Delete) {
+    delete 'release/ChameleonMiniUSBInterfaceLibrary' + getCurrentVersionName() + '.jar'
+}
+
+task makeJar(type: Copy) {
+    from ('build/intermediates/bundles/release/')
+    into ('release/')
+    include ('classes.jar')
+    rename ('classes.jar', 'ChameleonMiniUSBInterfaceLibrary' + getCurrentVersionName() + '.jar')
+}
+
+makeJar.dependsOn(clearJar, build)
