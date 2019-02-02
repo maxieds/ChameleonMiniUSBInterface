@@ -9,12 +9,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
 import static android.content.ContentValues.TAG;
 import static android.content.Context.DOWNLOAD_SERVICE;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.DOWNLOAD_XMODEM;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.QUERY_READONLY;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.SET_READONLY;
+import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.UPLOAD_ENCRYPTED;
 import static com.maxieds.chameleonminiusb.ChameleonCommands.StandardCommandSet.UPLOAD_XMODEM;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.DOWNLOAD;
 import static com.maxieds.chameleonminiusb.ChameleonDeviceConfig.SerialUSBStates.IDLE;
@@ -78,6 +80,8 @@ public class XModem {
     private static int uploadState;
     private static byte[] uploadFramebuffer = new byte[XMODEM_BLOCK_SIZE + 4];
     private static boolean initiallyReadOnly;
+    private static int encryptedUploadKeyIndex = 0;
+    private static long encryptedUploadTimeStampSalt = 0;
 
     public static boolean transmissionError() {
         return transmissionErrorOccurred;
@@ -272,6 +276,39 @@ public class XModem {
         streamBytesIndex = 0;
         useInputStream = false;
         uploadCardFileByXModemRunner();
+    }
+
+    /**
+     * Called to initiate the card data upload process.
+     * @ref LiveLoggerActivity.actionButtonUploadCard
+     */
+    public static void uploadEncryptedCardFileByXModemRunner() {
+        if(ChameleonDeviceConfig.serialPort == null || (streamSrc == null && streamBytes == null))
+            return;
+        try {
+            initiallyReadOnly = (Integer.parseInt(ChameleonDeviceConfig.sendCommandToChameleon(QUERY_READONLY, null).cmdResponseData) == 0);
+        } catch(Exception nfe) {
+            initiallyReadOnly = false;
+        }
+        fileSize = 0;
+        CurrentFrameNumber = FIRST_FRAME_NUMBER;
+        currentNAKCount = -1;
+        transmissionErrorOccurred = false;
+        uploadState = 0;
+        EOT = false;
+        String uploadCmdArgs = String.format(Locale.ENGLISH, "%d %x", encryptedUploadKeyIndex, encryptedUploadTimeStampSalt);
+        ChameleonDeviceConfig.sendCommandToChameleon(SET_READONLY, 0);
+        ChameleonDeviceConfig.serialPortLock.acquireUninterruptibly();
+        ChameleonDeviceConfig.sendCommandToChameleon(UPLOAD_ENCRYPTED, uploadCmdArgs, false);
+    }
+
+    public static void uploadEncryptedCardFileByXModem(byte[] cardInputBytes, int keyIndex, long timeStampSaltData) {
+        streamBytes = cardInputBytes;
+        streamBytesIndex = 0;
+        useInputStream = false;
+        encryptedUploadKeyIndex = keyIndex;
+        encryptedUploadTimeStampSalt = timeStampSaltData;
+        uploadEncryptedCardFileByXModemRunner();
     }
 
     public static void performXModemSerialDownload(byte[] liveLogData) {

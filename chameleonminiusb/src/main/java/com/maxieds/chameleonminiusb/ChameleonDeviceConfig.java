@@ -692,5 +692,43 @@ public class ChameleonDeviceConfig implements ChameleonUSBInterface {
         }
     }
 
+    public boolean chameleonUploadEncrypted(byte[] dumpDataBytes, int keyIndex, long timeStampSaltData) {
+        XModem.uploadEncryptedCardFileByXModem(dumpDataBytes, keyIndex, timeStampSaltData);
+        return executeChameleonUpload();
+    }
+
+    public boolean authenticateToChangeKeyData(String authPassphrase, int numChangesAllowed) {
+        String cmdArgsString = String.format(Locale.ENGLISH, "%s %d", authPassphrase, numChangesAllowed);
+        int cmdSuccessCode = sendCommandToChameleon(StandardCommandSet.KEYAUTH, cmdArgsString).cmdResponseCode;
+        return cmdSuccessCode == ChameleonCommands.SerialRespCode.TRUE.toInteger();
+    }
+
+    public boolean authenticateToChangeKeyData(String authPassphrase) {
+        return authenticateToChangeKeyData(authPassphrase, 1);
+    }
+
+    public boolean updateKeyData(int keyIndex, String keyData) {
+        String cmdArgsString = String.format(Locale.ENGLISH, "%d %s", keyIndex, keyData);
+        int cmdSuccessCode = sendCommandToChameleon(StandardCommandSet.SETKEY, cmdArgsString).cmdResponseCode;
+        return cmdSuccessCode == ChameleonCommands.SerialRespCode.OK.toInteger() ||
+                cmdSuccessCode == ChameleonCommands.SerialRespCode.OK_WITH_TEXT.toInteger() ||
+                cmdSuccessCode == ChameleonCommands.SerialRespCode.TRUE.toInteger();
+    }
+
+    public boolean updateKeyData(int keyIndex, byte[] keyData) {
+        return updateKeyData(keyIndex, Utils.byteArrayToString(keyData));
+    }
+
+    public String generateKeyData(int keyIndex, String initPassphrase) {
+
+        String cmdArgsString = String.format(Locale.ENGLISH, "%d %s", keyIndex, initPassphrase);
+        ChameleonCommandResult cmdSuccessCode = sendCommandToChameleon(StandardCommandSet.GENKEY, cmdArgsString);
+        if(cmdSuccessCode.cmdResponseCode == ChameleonCommands.SerialRespCode.OK_WITH_TEXT.toInteger()) {
+            return cmdSuccessCode.cmdResponseData;
+        }
+        return null;
+
+    }
+
 }
 

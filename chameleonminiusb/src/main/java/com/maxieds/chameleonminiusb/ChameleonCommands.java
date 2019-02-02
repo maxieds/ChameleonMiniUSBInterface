@@ -29,6 +29,10 @@ public class ChameleonCommands {
         SET_ACTIVE_SLOT,
         CLEAR_ACTIVE_SLOT,
         GET_RSSI_VOLTAGE,
+        UPLOAD_ENCRYPTED,
+        KEYAUTH,
+        SETKEY,
+        GENKEY,
     };
 
     /**
@@ -76,6 +80,14 @@ public class ChameleonCommands {
                 return new String[] {"clearmy", "CLEAR"};
             case GET_RSSI_VOLTAGE:
                 return new String[] {"rssimy?", "RSSI?"};
+            case UPLOAD_ENCRYPTED:
+                return new String[] {"UPLOAD_ENCRYPTED", null};
+            case KEYAUTH:
+                return new String[] {"KEYAUTH", null};
+            case SETKEY:
+                return new String[] {"SETKEY", null};
+            case GENKEY:
+                return new String[] {"GENKEY", null};
             default:
                 return null;
         }
